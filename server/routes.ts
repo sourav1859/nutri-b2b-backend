@@ -14,8 +14,8 @@ import { insertProductSchema, insertCustomerSchema, insertCustomerHealthProfileS
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Start queue processor
-  await queueProcessor.start();
+  // Start queue processor (temporarily disabled due to database connection issues)
+  // await queueProcessor.start();
 
   // Middleware for authentication and vendor context
   async function withAuth(req: any, res: any, next: any) {

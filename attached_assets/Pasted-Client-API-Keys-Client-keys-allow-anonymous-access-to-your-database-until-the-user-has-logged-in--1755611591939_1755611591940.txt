@@ -1,0 +1,25 @@
+Client API Keys
+Client keys allow "anonymous access" to your database, until the user has logged in. After logging in the keys will switch to the user's own login token.
+
+In this documentation, we will refer to the key using the name SUPABASE_KEY.
+
+We have provided you a Client Key to get started. You will soon be able to add as many keys as you like. You can find the anon key in the API Settings page.
+
+CLIENT API KEY
+eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc1MjI3NzAyMCwiZXhwIjo0OTA3OTUwNjIwLCJyb2xlIjoiYW5vbiJ9.oed7YcD__hgl36FxkTsB5wx9TuPzXextOnV3cDq7UrU
+EXAMPLE USAGE
+curl 'http://supabasekong-wk8c40o0kokcogw4wksc8s48.207.244.226.234.sslip.io/rest/v1/' \
+-H "apikey: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc1MjI3NzAyMCwiZXhwIjo0OTA3OTUwNjIwLCJyb2xlIjoiYW5vbiJ9.oed7YcD__hgl36FxkTsB5wx9TuPzXextOnV3cDq7UrU"
+Service Keys
+Service keys have FULL access to your data, bypassing any security policies. Be VERY careful where you expose these keys. They should only be used on a server and never on a client or browser.
+
+In this documentation, we will refer to the key using the name SERVICE_KEY.
+
+We have provided you with a Service Key to get started. Soon you will be able to add as many keys as you like. You can find the service_role in the API Settings page.
+
+SERVICE KEY
+eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc1MjI3NzAyMCwiZXhwIjo0OTA3OTUwNjIwLCJyb2xlIjoic2VydmljZV9yb2xlIn0.m_gkVVPEKU-5T9xaoOAUHeWoEh5NOyz6I_jDPLh7pE4
+EXAMPLE USAGE
+curl 'http://supabasekong-wk8c40o0kokcogw4wksc8s48.207.244.226.234.sslip.io/rest/v1/' \
+-H "apikey: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc1MjI3NzAyMCwiZXhwIjo0OTA3OTUwNjIwLCJyb2xlIjoic2VydmljZV9yb2xlIn0.m_gkVVPEKU-5T9xaoOAUHeWoEh5NOyz6I_jDPLh7pE4" \
+-H "Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJzdXBhYmFzZSIsImlhdCI6MTc1MjI3NzAyMCwiZXhwIjo0OTA3OTUwNjIwLCJyb2xlIjoic2VydmljZV9yb2xlIn0.m_gkVVPEKU-5T9xaoOAUHeWoEh5NOyz6I_jDPLh7pE4"
