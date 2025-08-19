@@ -1,0 +1,402 @@
+# Odyssey B2B Backend - Full Production Implementation
+
+## CRITICAL: This is NOT a simplified MVP - implement ALL requirements exactly as specified
+
+You previously delivered a "simplified" version, but I need the FULL production-ready implementation as outlined in the attached PRD documents. This is an enterprise B2B platform that must handle:
+- 50 vendors with 500k products and 1M customers each
+- 5-10GB CSV files with 2M rows in ≤45 minutes
+- P95 latency ≤500ms for /matches, ≤300ms for search
+- Full HIPAA compliance with audit trails
+
+## MANDATORY REQUIREMENTS - DO NOT SIMPLIFY OR SKIP
+
+### 1. DATABASE ARCHITECTURE (NON-NEGOTIABLE)
+
+Implement EXACT partitioning strategy:
+- Parent tables: LIST partitioned by vendor_id
+- Sub-partitions: HASH (Products ×16, Customers ×32)
+- This is critical for performance at scale
+
+```sql
+CREATE TABLE products (
+  -- All fields from PRD Appendix A.1
+) PARTITION BY LIST (vendor_id);
+
+-- Create vendor partitions with HASH sub-partitioning
+CREATE TABLE products_vendor_123 PARTITION OF products
+  FOR VALUES IN ('vendor-123-uuid')
+  PARTITION BY HASH (id);
+
+-- 16 hash partitions per vendor for products
+CREATE TABLE products_vendor_123_0 PARTITION OF products_vendor_123
+  FOR VALUES WITH (modulus 16, remainder 0);
+-- ... repeat for remainders 1-15
+
+-- GIN indexes for FTS and arrays
+CREATE INDEX CONCURRENTLY idx_products_search_tsv ON products USING GIN (search_tsv);
+CREATE INDEX CONCURRENTLY idx_products_dietary_tags ON products USING GIN (dietary_tags);
+CREATE INDEX CONCURRENTLY idx_products_allergens ON products USING GIN (allergens);
+
+-- Trigger-maintained tsvector for search
+CREATE OR REPLACE FUNCTION update_product_search_tsv()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.search_tsv := to_tsvector('english', 
+    COALESCE(NEW.name, '') || ' ' || 
+    COALESCE(NEW.brand, '') || ' ' || 
+    COALESCE(NEW.description, '')
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trig_update_product_search_tsv
+  BEFORE INSERT OR UPDATE ON products
+  FOR EACH ROW EXECUTE FUNCTION update_product_search_tsv();
+```
+
+### 2. TUS RESUMABLE UPLOADS (MANDATORY FOR 5-10GB FILES)
+
+Must integrate Supabase Storage TUS - NOT basic file upload
+POST /api/v1/ingest/csv?mode=products|customers
+
+```typescript
+export async function POST(request: Request) {
+  // 1. Validate vendor_id from JWT
+  // 2. Create ingestion_job record
+  // 3. Generate signed TUS upload URL via Supabase Storage
+  // 4. Return job_id + TUS URL for resumable upload
+  
+  const { data: uploadUrl } = await supabase.storage
+    .from('csv-uploads')
+    .createSignedUploadUrl(`${vendorId}/${jobId}/data.csv`, {
+      upsert: true,
+      resumable: true, // CRITICAL: TUS support
+      maxFileSize: 10 * 1024 * 1024 * 1024 // 10GB
+    });
+    
+  return Response.json({
+    job_id: jobId,
+    upload_url: uploadUrl,
+    resumable: true
+  });
+}
+```
+
+### 3. POSTGRES COPY BULK LOADING (CRITICAL FOR PERFORMANCE)
+
+Worker must use COPY FROM for 2M rows in ≤45min SLO
+
+```typescript
+async function processCsvIngest(jobId: string) {
+  const job = await getIngestionJob(jobId);
+  
+  // 1. Stream from Supabase Storage
+  const fileStream = await supabase.storage
+    .from('csv-uploads')
+    .download(`${job.vendor_id}/${jobId}/data.csv`);
+  
+  // 2. COPY directly to staging table - NOT INSERT loops
+  await db.query(`
+    COPY stg_products (vendor_id, external_id, name, brand, ...) 
+    FROM STDIN WITH (FORMAT CSV, HEADER true, DELIMITER ',')
+  `, fileStream);
+  
+  // 3. Validate and auto-map using synonyms
+  await validateAndMapStagingData(jobId);
+  
+  // 4. MERGE to live partitions in 100k-250k batches
+  await db.query(`
+    INSERT INTO products (vendor_id, external_id, name, ...)
+    SELECT vendor_id, external_id, name, ...
+    FROM stg_products 
+    WHERE job_id = $1
+    ON CONFLICT (vendor_id, external_id) 
+    DO UPDATE SET ...
+  `, [jobId]);
+  
+  // 5. ANALYZE affected partitions - CRITICAL
+  await db.query('ANALYZE products');
+  
+  // 6. Generate errors.csv for failed rows
+  // 7. Emit webhook with HMAC signature
+}
+```
+
+### 4. POSTGRES QUEUE WITH SKIP LOCKED (NO EXTERNAL QUEUES)
+
+Use SELECT ... FOR UPDATE SKIP LOCKED pattern
+
+```typescript
+async function processQueue() {
+  while (true) {
+    const job = await db.query(`
+      UPDATE ingestion_jobs 
+      SET status = 'running', started_at = NOW()
+      WHERE id = (
+        SELECT id FROM ingestion_jobs 
+        WHERE status = 'queued' 
+        AND vendor_id = $1
+        ORDER BY created_at
+        FOR UPDATE SKIP LOCKED
+        LIMIT 1
+      )
+      RETURNING *
+    `, [vendorId]);
+    
+    if (!job.rows[0]) {
+      await sleep(1000);
+      continue;
+    }
+    
+    try {
+      await processJob(job.rows[0]);
+    } catch (error) {
+      await handleJobFailure(job.rows[0], error);
+    }
+  }
+}
+```
+
+### 5. READ REPLICA ROUTING (PERFORMANCE REQUIREMENT)
+
+Route /search and analytics to read replicas
+
+```typescript
+const readOnlyRoutes = ['/api/v1/search', '/api/v1/analytics'];
+
+function getDbConnection(path: string) {
+  if (readOnlyRoutes.some(route => path.startsWith(route))) {
+    return readReplicaDb; // Route to read replica
+  }
+  return primaryDb; // Write operations use primary
+}
+
+// Include freshness indicator for replica lag
+export async function GET(request: Request) {
+  const db = getDbConnection(request.url);
+  const results = await db.query('SELECT ...');
+  
+  if (db === readReplicaDb) {
+    const lag = await checkReplicationLag();
+    return Response.json({
+      data: results,
+      freshness: lag > 5000 ? 'stale' : 'fresh'
+    });
+  }
+  
+  return Response.json({ data: results });
+}
+```
+
+### 6. IDEMPOTENCY STORE (ENTERPRISE REQUIREMENT)
+
+ALL POST/PUT/PATCH must support Idempotency-Key header
+
+```typescript
+async function handleIdempotency(request: Request, vendorId: string) {
+  const idempotencyKey = request.headers.get('Idempotency-Key');
+  if (!idempotencyKey) {
+    throw new Error('Idempotency-Key header required');
+  }
+  
+  const existing = await db.query(`
+    SELECT response_hash, status FROM idempotency_keys
+    WHERE key = $1 AND vendor_id = $2
+  `, [idempotencyKey, vendorId]);
+  
+  if (existing.rows[0]) {
+    // Return cached response
+    return JSON.parse(existing.rows[0].response_hash);
+  }
+  
+  // Store new request
+  const requestHash = createHash(await request.text());
+  await db.query(`
+    INSERT INTO idempotency_keys (key, vendor_id, method, path, request_hash, created_at, expires_at)
+    VALUES ($1, $2, $3, $4, $5, NOW(), NOW() + INTERVAL '24 hours')
+  `, [idempotencyKey, vendorId, request.method, new URL(request.url).pathname, requestHash]);
+}
+```
+
+### 7. WEBHOOK HMAC SIGNATURES (SECURITY REQUIREMENT)
+
+Implement Stripe-style HMAC-SHA256 signatures
+
+```typescript
+function signWebhookPayload(payload: string, secret: string, timestamp: number): string {
+  const signedPayload = `${timestamp}\n${payload}`;
+  return crypto
+    .createHmac('sha256', secret)
+    .update(signedPayload, 'utf8')
+    .digest('hex');
+}
+
+async function deliverWebhook(endpointId: string, eventType: string, data: any) {
+  const endpoint = await getWebhookEndpoint(endpointId);
+  const timestamp = Math.floor(Date.now() / 1000);
+  const payload = JSON.stringify({ event_type: eventType, data, timestamp });
+  const signature = signWebhookPayload(payload, endpoint.secret, timestamp);
+  
+  const response = await fetch(endpoint.url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Timestamp': timestamp.toString(),
+      'X-Signature': `sha256=${signature}`,
+      'X-Idempotency-Key': generateIdempotencyKey()
+    },
+    body: payload
+  });
+  
+  // Implement exponential backoff retries + DLQ
+  if (!response.ok) {
+    await scheduleWebhookRetry(endpointId, payload, attempt + 1);
+  }
+}
+```
+
+### 8. HEALTH DERIVATIONS (EXACT FORMULAS)
+
+Implement Mifflin-St Jeor BMR + TDEE calculations exactly as specified
+
+```typescript
+function calculateBMR(weight_kg: number, height_cm: number, age: number, gender: string): number {
+  if (gender === 'male') {
+    return 10 * weight_kg + 6.25 * height_cm - 5 * age + 5;
+  } else {
+    return 10 * weight_kg + 6.25 * height_cm - 5 * age - 161;
+  }
+}
+
+function calculateTDEE(bmr: number, activityLevel: string): number {
+  const factors = {
+    sedentary: 1.2,
+    light: 1.375,
+    moderate: 1.55,
+    very: 1.725,
+    extra: 1.9
+  };
+  return bmr * factors[activityLevel];
+}
+
+// Update derived_limits based on condition templates
+async function updateDerivedLimits(customerId: string, vendorId: string) {
+  const profile = await getCustomerHealthProfile(customerId);
+  const rules = await getDietRules(vendorId, profile.conditions);
+  
+  const derivedLimits = {};
+  for (const condition of profile.conditions) {
+    const rule = rules.find(r => r.condition_code === condition);
+    if (rule) {
+      Object.assign(derivedLimits, rule.policy.daily_limits);
+    }
+  }
+  
+  await db.query(`
+    UPDATE customer_health_profiles 
+    SET derived_limits = $1, tdee_cached = $2, bmr = $3
+    WHERE customer_id = $4
+  `, [derivedLimits, profile.tdee, profile.bmr, customerId]);
+}
+```
+
+### 9. SUPABASE VAULT INTEGRATION (HIPAA REQUIREMENT)
+
+Use Supabase Vault for encrypted secrets storage
+
+```typescript
+async function storeWebhookSecret(vendorId: string, endpointId: string, secret: string) {
+  const { data } = await supabase
+    .from('vault.secrets')
+    .insert({
+      name: `webhook_${vendorId}_${endpointId}`,
+      secret: secret,
+      description: `Webhook secret for vendor ${vendorId}`
+    });
+  
+  return data.id; // Store this as secrets_ref
+}
+
+async function getWebhookSecret(secretRef: string): Promise<string> {
+  const { data } = await supabase
+    .from('vault.decrypted_secrets')
+    .select('decrypted_secret')
+    .eq('id', secretRef)
+    .single();
+  
+  return data.decrypted_secret;
+}
+```
+
+### 10. COMPREHENSIVE AUDIT LOGGING (HIPAA COMPLIANCE)
+
+Audit ALL health data access and RBAC changes
+
+```typescript
+async function auditHealthAccess(
+  userId: string, 
+  vendorId: string, 
+  action: string, 
+  customerId: string,
+  before?: any,
+  after?: any
+) {
+  await db.query(`
+    INSERT INTO audit_log (
+      actor_user_id, actor_role, vendor_id, action, entity, entity_id,
+      before, after, ip, ua, timestamp
+    ) VALUES ($1, $2, $3, $4, 'customer_health_profile', $5, $6, $7, $8, $9, NOW())
+  `, [userId, userRole, vendorId, action, customerId, before, after, clientIp, userAgent]);
+}
+
+// Middleware to audit health endpoint access
+function auditHealthMiddleware(handler: Function) {
+  return async (request: Request, context: any) => {
+    const before = await getCurrentHealthProfile(context.customerId);
+    const result = await handler(request, context);
+    const after = await getCurrentHealthProfile(context.customerId);
+    
+    await auditHealthAccess(
+      context.userId,
+      context.vendorId,
+      request.method,
+      context.customerId,
+      before,
+      after
+    );
+    
+    return result;
+  };
+}
+```
+
+## IMPLEMENTATION SEQUENCE (FOLLOW EXACTLY)
+
+1. Database migrations + partitioning + indexes + triggers
+2. TUS upload integration + COPY-based ingestion pipeline
+3. Postgres queue with SKIP LOCKED pattern
+4. Read replica routing for /search endpoints
+5. Idempotency store for all POST/PUT/PATCH
+6. HMAC webhook signatures + retry/DLQ
+7. Health derivations (Mifflin-St Jeor BMR/TDEE)
+8. Supabase Vault secrets integration
+9. Comprehensive audit logging
+10. Load testing (2M row ingestion < 45min)
+
+## ACCEPTANCE CRITERIA (MUST PASS)
+
+- ✅ 2M row CSV ingestion completes in ≤45 minutes using COPY
+- ✅ /matches API responds in P95 ≤500ms with proper caching
+- ✅ /search API uses read replicas with freshness indicators
+- ✅ All POST/PUT/PATCH support idempotency with replay
+- ✅ Webhooks use HMAC-SHA256 signatures with timestamp validation
+- ✅ Health data access is fully audited
+- ✅ Partitioning works correctly (LIST by vendor, HASH sub-partitions)
+- ✅ TUS resumable uploads work for 5-10GB files
+- ✅ Postgres queue processes jobs with SKIP LOCKED
+- ✅ All secrets stored in Supabase Vault
+
+## DO NOT DELIVER ANYTHING "SIMPLIFIED" OR "BASIC"
+
+This is an enterprise platform handling sensitive health data at scale. Every requirement in the PRD must be implemented exactly as specified. If you cannot implement the full requirements, explicitly state what's missing rather than delivering a simplified version.
