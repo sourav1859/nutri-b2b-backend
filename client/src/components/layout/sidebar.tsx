@@ -19,8 +19,7 @@ const navigation = [
   {
     name: "Dashboard",
     href: "/",
-    icon: LayoutDashboard,
-    current: true
+    icon: LayoutDashboard
   }
 ];
 
@@ -112,7 +111,13 @@ export function Sidebar() {
     className = "" 
   }: { 
     title?: string; 
-    items: typeof navigation; 
+    items: Array<{
+      name: string;
+      href: string;
+      icon: any;
+      badge?: string;
+      badgeColor?: string;
+    }>; 
     className?: string;
   }) => (
     <div className={className}>
