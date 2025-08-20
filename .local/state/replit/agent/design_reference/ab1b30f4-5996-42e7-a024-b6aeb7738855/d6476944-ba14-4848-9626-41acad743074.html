@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Odyssey B2B - Backend Administration</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#E3F2FD',
+                            100: '#BBDEFB',
+                            500: '#1976D2',
+                            600: '#1565C0',
+                            700: '#0D47A1'
+                        },
+                        secondary: {
+                            500: '#388E3C',
+                            600: '#2E7D32'
+                        },
+                        accent: {
+                            500: '#F57C00',
+                            600: '#E65100'
+                        }
+                    },
+                    fontFamily: {
+                        'sans': ['Roboto', 'sans-serif']
+                    }
+                }
+            }
+        };
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body class="bg-gray-50 font-sans">
+    <!-- @COMPONENT: AppShell [Main application container with sidebar and header] -->
+    <div class="flex h-screen bg-gray-50">
+        <!-- Sidebar Navigation -->
+        <!-- @COMPONENT: Sidebar [Main navigation with role-based menu items] -->
+        <nav class="w-64 bg-white shadow-lg border-r border-gray-200 flex-shrink-0">
+            <div class="p-6">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-primary-500 rounded-lg flex items-center justify-center">
+                        <span class="material-icons text-white text-sm">nutrition</span>
+                    </div>
+                    <h1 class="text-xl font-bold text-gray-900">Odyssey B2B</h1>
+                </div>
+            </div>
+
+            <!-- @STATE: activeMenuItem:string = 'dashboard' -->
+            <div class="px-4 pb-4">
+                <ul class="space-y-1">
+                    <li>
+                        <a href="#" class="flex items-center space-x-3 px-3 py-2 rounded-lg bg-primary-50 text-primary-700 border border-primary-200" data-menu-item="dashboard">
+                            <span class="material-icons text-sm">dashboard</span>
+                            <span class="font-medium">Dashboard</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100" data-menu-item="api">
+                            <span class="material-icons text-sm">api</span>
+                            <span>API Explorer</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100" data-menu-item="vendors">
+                            <span class="material-icons text-sm">business</span>
+                            <span>Vendors</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100" data-menu-item="products">
+                            <span class="material-icons text-sm">inventory_2</span>
+                            <span>Product Catalog</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100" data-menu-item="customers">
+                            <span class="material-icons text-sm">people</span>
+                            <span>Customers</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100" data-menu-item="ingestion">
+                            <span class="material-icons text-sm">upload</span>
+                            <span>Data Ingestion</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100" data-menu-item="matching">
+                            <span class="material-icons text-sm">psychology</span>
+                            <span>Health Matching</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100" data-menu-item="webhooks">
+                            <span class="material-icons text-sm">webhook</span>
+                            <span>Webhooks</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-100" data-menu-item="monitoring">
+                            <span class="material-icons text-sm">monitoring</span>
+                            <span>Monitoring</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- User Info -->
+            <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-white">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center">
+                        <span class="material-icons text-white text-sm">person</span>
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-gray-900" data-bind="user.display_name">Admin User</p>
+                        <p class="text-xs text-gray-500" data-bind="user.role">Platform Admin</p>
+                    </div>
+                </div>
+            </div>
+        </nav>
+        <!-- @END_COMPONENT: Sidebar -->
+
+        <!-- Main Content Area -->
+        <div class="flex-1 flex flex-col min-h-0">
+            <!-- Header -->
+            <!-- @COMPONENT: Header [Top navigation with breadcrumbs and actions] -->
+            <header class="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <h2 class="text-2xl font-bold text-gray-900">System Dashboard</h2>
+                        <div class="flex items-center space-x-2 text-sm text-gray-500">
+                            <span>Home</span>
+                            <span class="material-icons text-xs">chevron_right</span>
+                            <span>Dashboard</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <!-- System Status Indicator -->
+                        <div class="flex items-center space-x-2">
+                            <div class="w-2 h-2 bg-secondary-500 rounded-full"></div>
+                            <span class="text-sm text-gray-600">All Systems Operational</span>
+                        </div>
+                        <!-- Notifications -->
+                        <button class="p-2 text-gray-400 hover:text-gray-600 relative">
+                            <span class="material-icons">notifications</span>
+                            <div class="absolute -top-1 -right-1 w-5 h-5 bg-accent-500 rounded-full flex items-center justify-center">
+                                <span class="text-xs text-white font-medium" data-bind="notifications.count">3</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </header>
+            <!-- @END_COMPONENT: Header -->
+
+            <!-- Main Content -->
+            <main class="flex-1 overflow-auto p-6">
+                <!-- System Metrics Overview -->
+                <!-- @COMPONENT: MetricsGrid [System-wide metrics cards] -->
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Active Vendors</p>
+                                <p class="text-3xl font-bold text-gray-900" data-bind="metrics.active_vendors">47</p>
+                            </div>
+                            <div class="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
+                                <span class="material-icons text-primary-600">business</span>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-center">
+                            <span class="text-sm text-secondary-600 flex items-center">
+                                <span class="material-icons text-xs mr-1">trending_up</span>
+                                +3 this month
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Total Products</p>
+                                <p class="text-3xl font-bold text-gray-900" data-bind="metrics.total_products">1.2M</p>
+                            </div>
+                            <div class="w-12 h-12 bg-secondary-100 rounded-lg flex items-center justify-center">
+                                <span class="material-icons text-secondary-600">inventory_2</span>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-center">
+                            <span class="text-sm text-secondary-600 flex items-center">
+                                <span class="material-icons text-xs mr-1">trending_up</span>
+                                +15.2K today
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">API Requests (24h)</p>
+                                <p class="text-3xl font-bold text-gray-900" data-bind="metrics.api_requests_24h">892K</p>
+                            </div>
+                            <div class="w-12 h-12 bg-accent-100 rounded-lg flex items-center justify-center">
+                                <span class="material-icons text-accent-600">api</span>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-center">
+                            <span class="text-sm text-gray-600">P95: 287ms</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-gray-600">Health Matches</p>
+                                <p class="text-3xl font-bold text-gray-900" data-bind="metrics.health_matches">45.8K</p>
+                            </div>
+                            <div class="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center">
+                                <span class="material-icons text-pink-600">psychology</span>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-center">
+                            <span class="text-sm text-secondary-600 flex items-center">
+                                <span class="material-icons text-xs mr-1">trending_up</span>
+                                97.3% accuracy
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <!-- @END_COMPONENT: MetricsGrid -->
+
+                <div class="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
+                    <!-- API Performance Chart -->
+                    <!-- @COMPONENT: PerformanceChart [Real-time API performance visualization] -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                        <div class="p-6 border-b border-gray-200">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-lg font-semibold text-gray-900">API Performance</h3>
+                                <select class="px-3 py-1 border border-gray-300 rounded-md text-sm">
+                                    <option>Last 24 hours</option>
+                                    <option>Last 7 days</option>
+                                    <option>Last 30 days</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="p-6">
+                            <!-- Chart placeholder - would be replaced with actual chart library -->
+                            <div class="h-64 bg-gray-100 rounded-lg flex items-center justify-center">
+                                <div class="text-center">
+                                    <span class="material-icons text-gray-400 text-4xl mb-2">show_chart</span>
+                                    <p class="text-gray-500">Performance metrics visualization</p>
+                                    <p class="text-xs text-gray-400 mt-1">Chart.js integration required</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- @END_COMPONENT: PerformanceChart -->
+
+                    <!-- Recent Ingestion Jobs -->
+                    <!-- @COMPONENT: IngestionJobsList [Live feed of data ingestion jobs] -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                        <div class="p-6 border-b border-gray-200">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-lg font-semibold text-gray-900">Recent Ingestion Jobs</h3>
+                                <a href="#" class="text-primary-600 hover:text-primary-700 text-sm font-medium">View All</a>
+                            </div>
+                        </div>
+                        <div class="divide-y divide-gray-200">
+                            <!-- @MAP: recentJobs.map(job => ( -->
+                            <div class="p-6 hover:bg-gray-50" data-mock="true">
+                                <div class="flex items-start justify-between">
+                                    <div class="flex-1">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-3 h-3 bg-secondary-500 rounded-full"></div>
+                                            <h4 class="text-sm font-medium text-gray-900">Product Catalog - NutriCorp</h4>
+                                        </div>
+                                        <div class="mt-2 flex items-center space-x-4 text-xs text-gray-500">
+                                            <span>250K rows processed</span>
+                                            <span>•</span>
+                                            <span>12 minutes ago</span>
+                                        </div>
+                                    </div>
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary-100 text-secondary-800">
+                                        Completed
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="p-6 hover:bg-gray-50" data-mock="true">
+                                <div class="flex items-start justify-between">
+                                    <div class="flex-1">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></div>
+                                            <h4 class="text-sm font-medium text-gray-900">Customer Data - HealthMart</h4>
+                                        </div>
+                                        <div class="mt-2">
+                                            <div class="flex items-center justify-between mb-1">
+                                                <span class="text-xs text-gray-500">Processing: 45K/120K rows</span>
+                                                <span class="text-xs text-gray-500">37%</span>
+                                            </div>
+                                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                                <div class="bg-blue-500 h-2 rounded-full" style="width: 37%"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        Running
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="p-6 hover:bg-gray-50" data-mock="true">
+                                <div class="flex items-start justify-between">
+                                    <div class="flex-1">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-3 h-3 bg-red-500 rounded-full"></div>
+                                            <h4 class="text-sm font-medium text-gray-900">Product Images - FreshFoods</h4>
+                                        </div>
+                                        <div class="mt-2 flex items-center space-x-4 text-xs text-gray-500">
+                                            <span>Failed at row 15,247</span>
+                                            <span>•</span>
+                                            <span>1 hour ago</span>
+                                        </div>
+                                    </div>
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        Failed
+                                    </span>
+                                </div>
+                            </div>
+                            <!-- @END_MAP )) -->
+                        </div>
+                    </div>
+                    <!-- @END_COMPONENT: IngestionJobsList -->
+                </div>
+
+                <!-- System Health & Monitoring -->
+                <!-- @COMPONENT: SystemHealthPanel [Infrastructure and database health metrics] -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
+                    <div class="p-6 border-b border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-900">System Health & Infrastructure</h3>
+                    </div>
+                    <div class="p-6">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <!-- Database Performance -->
+                            <div class="space-y-4">
+                                <h4 class="text-sm font-semibold text-gray-900 flex items-center">
+                                    <span class="material-icons text-sm mr-2 text-gray-600">storage</span>
+                                    Database
+                                </h4>
+                                <div class="space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm text-gray-600">Primary DB</span>
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-2 h-2 bg-secondary-500 rounded-full"></div>
+                                            <span class="text-sm text-gray-900">Healthy</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm text-gray-600">Read Replicas</span>
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-2 h-2 bg-secondary-500 rounded-full"></div>
+                                            <span class="text-sm text-gray-900">3/3 Active</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm text-gray-600">Connections</span>
+                                        <span class="text-sm text-gray-900">47/200</span>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm text-gray-600">Replication Lag</span>
+                                        <span class="text-sm text-gray-900">~2ms</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- API Gateway -->
+                            <div class="space-y-4">
+                                <h4 class="text-sm font-semibold text-gray-900 flex items-center">
+                                    <span class="material-icons text-sm mr-2 text-gray-600">api</span>
+                                    API Gateway
+                                </h4>
+                                <div class="space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm text-gray-600">Status</span>
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-2 h-2 bg-secondary-500 rounded-full"></div>
+                                            <span class="text-sm text-gray-900">Operational</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm text-gray-600">Throughput</span>
+                                        <span class="text-sm text-gray-900">1,247 req/min</span>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm text-gray-600">Error Rate</span>
+                                        <span class="text-sm text-gray-900">0.02%</span>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm text-gray-600">Avg Response</span>
+                                        <span class="text-sm text-gray-900">165ms</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Queue System -->
+                            <div class="space-y-4">
+                                <h4 class="text-sm font-semibold text-gray-900 flex items-center">
+                                    <span class="material-icons text-sm mr-2 text-gray-600">queue</span>
+                                    Queue System
+                                </h4>
+                                <div class="space-y-3">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm text-gray-600">Workers Active</span>
+                                        <span class="text-sm text-gray-900">12/15</span>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm text-gray-600">Pending Jobs</span>
+                                        <span class="text-sm text-gray-900">3</span>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm text-gray-600">Failed Jobs</span>
+                                        <span class="text-sm text-gray-900">0</span>
+                                    </div>
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm text-gray-600">Avg Process Time</span>
+                                        <span class="text-sm text-gray-900">4.2 min</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- @END_COMPONENT: SystemHealthPanel -->
+
+                <!-- API Endpoints Overview -->
+                <!-- @COMPONENT: APIEndpointsTable [Quick overview of main API endpoints and their status] -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                    <div class="p-6 border-b border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-lg font-semibold text-gray-900">API Endpoints Status</h3>
+                            <a href="#" class="text-primary-600 hover:text-primary-700 text-sm font-medium">View API Documentation</a>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Endpoint</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">24h Requests</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Response</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Error Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200" data-mock="true">
+                                <!-- @MAP: apiEndpoints.map(endpoint => ( -->
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm font-medium text-gray-900">/api/v1/products</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">GET</span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-2 h-2 bg-secondary-500 rounded-full"></div>
+                                            <span class="text-sm text-gray-900">Healthy</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">234,567</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">145ms</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">0.01%</td>
+                                </tr>
+
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm font-medium text-gray-900">/api/v1/matches/:customerId</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">GET</span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-2 h-2 bg-secondary-500 rounded-full"></div>
+                                            <span class="text-sm text-gray-900">Healthy</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">45,892</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">287ms</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">0.03%</td>
+                                </tr>
+
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm font-medium text-gray-900">/api/v1/ingest/csv</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary-100 text-secondary-800">POST</span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-2 h-2 bg-secondary-500 rounded-full"></div>
+                                            <span class="text-sm text-gray-900">Healthy</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">1,247</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">2.3s</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">0.08%</td>
+                                </tr>
+
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm font-medium text-gray-900">/api/v1/customers/:id/health</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-accent-100 text-accent-800">PUT</span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center space-x-2">
+                                            <div class="w-2 h-2 bg-secondary-500 rounded-full"></div>
+                                            <span class="text-sm text-gray-900">Healthy</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">12,334</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">89ms</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">0.02%</td>
+                                </tr>
+                                <!-- @END_MAP )) -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <!-- @END_COMPONENT: APIEndpointsTable -->
+            </main>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: AppShell -->
+
+    <!-- Quick Action Modal Example (Hidden by default) -->
+    <!-- @COMPONENT: QuickActionModal [Modal for creating new resources] -->
+    <div id="quickActionModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50" data-modal="quickAction" data-implementation="Toggle visibility based on state">
+        <div class="bg-white rounded-xl shadow-xl max-w-md w-full mx-4">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-gray-900">Quick Actions</h3>
+                    <button class="text-gray-400 hover:text-gray-600" data-event="click:closeModal">
+                        <span class="material-icons">close</span>
+                    </button>
+                </div>
+            </div>
+            <div class="p-6">
+                <div class="space-y-3">
+                    <button class="w-full flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 text-left">
+                        <span class="material-icons text-primary-600">upload</span>
+                        <div>
+                            <div class="font-medium text-gray-900">Start CSV Ingestion</div>
+                            <div class="text-sm text-gray-500">Upload product or customer data</div>
+                        </div>
+                    </button>
+                    <button class="w-full flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 text-left">
+                        <span class="material-icons text-secondary-600">business</span>
+                        <div>
+                            <div class="font-medium text-gray-900">Add New Vendor</div>
+                            <div class="text-sm text-gray-500">Create vendor account</div>
+                        </div>
+                    </button>
+                    <button class="w-full flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 text-left">
+                        <span class="material-icons text-accent-600">webhook</span>
+                        <div>
+                            <div class="font-medium text-gray-900">Configure Webhook</div>
+                            <div class="text-sm text-gray-500">Set up event notifications</div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- @END_COMPONENT: QuickActionModal -->
+
+    <script>
+        (function() {
+            // TODO: Implement business logic, API calls, or state management
+            
+            // Simple navigation state management
+            document.addEventListener('DOMContentLoaded', function() {
+                // Handle menu item clicks
+                const menuItems = document.querySelectorAll('[data-menu-item]');
+                menuItems.forEach(item => {
+                    item.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        
+                        // Remove active state from all items
+                        menuItems.forEach(mi => {
+                            mi.classList.remove('bg-primary-50', 'text-primary-700', 'border', 'border-primary-200');
+                            mi.classList.add('text-gray-600', 'hover:bg-gray-100');
+                        });
+                        
+                        // Add active state to clicked item
+                        this.classList.remove('text-gray-600', 'hover:bg-gray-100');
+                        this.classList.add('bg-primary-50', 'text-primary-700', 'border', 'border-primary-200');
+                        
+                        // TODO: Load appropriate content based on menu selection
+                        console.log('Navigate to:', this.dataset.menuItem);
+                    });
+                });
+
+                // Handle modal toggling
+                const modalTriggers = document.querySelectorAll('[data-modal-trigger]');
+                const modals = document.querySelectorAll('[data-modal]');
+                
+                modalTriggers.forEach(trigger => {
+                    trigger.addEventListener('click', function() {
+                        const modalId = this.dataset.modalTrigger;
+                        const modal = document.querySelector(`[data-modal="${modalId}"]`);
+                        if (modal) {
+                            modal.classList.remove('hidden');
+                            modal.classList.add('flex');
+                        }
+                    });
+                });
+
+                // Handle modal closing
+                const closeButtons = document.querySelectorAll('[data-event="click:closeModal"]');
+                closeButtons.forEach(button => {
+                    button.addEventListener('click', function() {
+                        const modal = this.closest('[data-modal]');
+                        if (modal) {
+                            modal.classList.add('hidden');
+                            modal.classList.remove('flex');
+                        }
+                    });
+                });
+
+                // Real-time metrics updates simulation
+                function simulateMetricsUpdate() {
+                    // TODO: Replace with actual API calls to fetch real metrics
+                    const metricsElements = document.querySelectorAll('[data-bind]');
+                    
+                    // This would be replaced with actual data fetching
+                    console.log('Simulating metrics update...');
+                }
+
+                // Update metrics every 30 seconds
+                setInterval(simulateMetricsUpdate, 30000);
+            });
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Odyssey B2B - Nutrition Platform Admin Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'sans': ['Roboto', 'system-ui', 'sans-serif'],
+                        'mono': ['Roboto Mono', 'monospace'],
+                    },
+                    colors: {
+                        primary: {
+                            50: '#E3F2FD',
+                            500: '#2196F3',
+                            700: '#1976D2',
+                            900: '#0D47A1'
+                        },
+                        secondary: {
+                            500: '#424242',
+                            800: '#424242'
+                        }
+                    }
+                }
+            }
+        };
+    </script>
+</head>
+<body class="bg-gray-50 font-sans">
+    <!-- @COMPONENT: MainLayout [full dashboard layout] -->
+    <div class="flex min-h-screen">
+        <!-- @COMPONENT: Sidebar [navigation menu] -->
+        <aside class="w-64 bg-white shadow-md flex-shrink-0">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center">
+                    <div class="w-8 h-8 bg-primary-700 rounded-lg flex items-center justify-center">
+                        <span class="material-icons text-white text-sm">nutrition</span>
+                    </div>
+                    <div class="ml-3">
+                        <h1 class="text-lg font-medium text-gray-900">Odyssey B2B</h1>
+                        <p class="text-sm text-gray-500">Nutrition Platform</p>
+                    </div>
+                </div>
+            </div>
+            
+            <nav class="mt-6">
+                <div class="px-3">
+                    <div class="space-y-1">
+                        <a href="#" class="bg-primary-50 text-primary-700 group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                            <span class="material-icons mr-3 text-primary-500">dashboard</span>
+                            Dashboard
+                        </a>
+                        <a href="#" class="text-gray-600 hover:bg-gray-50 hover:text-gray-900 group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                            <span class="material-icons mr-3 text-gray-400">business</span>
+                            Vendors
+                            <span class="ml-auto bg-gray-200 text-gray-600 text-xs px-2 py-1 rounded-full" data-bind="vendorCount">47</span>
+                        </a>
+                        <a href="#" class="text-gray-600 hover:bg-gray-50 hover:text-gray-900 group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                            <span class="material-icons mr-3 text-gray-400">inventory</span>
+                            Products
+                            <span class="ml-auto bg-gray-200 text-gray-600 text-xs px-2 py-1 rounded-full" data-bind="productCount">2.3M</span>
+                        </a>
+                        <a href="#" class="text-gray-600 hover:bg-gray-50 hover:text-gray-900 group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                            <span class="material-icons mr-3 text-gray-400">people</span>
+                            Customers
+                            <span class="ml-auto bg-gray-200 text-gray-600 text-xs px-2 py-1 rounded-full" data-bind="customerCount">890K</span>
+                        </a>
+                    </div>
+                    
+                    <div class="mt-8">
+                        <h3 class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Data Pipeline</h3>
+                        <div class="mt-2 space-y-1">
+                            <a href="#" class="text-gray-600 hover:bg-gray-50 hover:text-gray-900 group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                                <span class="material-icons mr-3 text-gray-400">upload_file</span>
+                                Ingestion Jobs
+                                <span class="ml-auto bg-orange-100 text-orange-600 text-xs px-2 py-1 rounded-full" data-bind="runningJobs">3</span>
+                            </a>
+                            <a href="#" class="text-gray-600 hover:bg-gray-50 hover:text-gray-900 group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                                <span class="material-icons mr-3 text-gray-400">sync</span>
+                                API Connectors
+                            </a>
+                            <a href="#" class="text-gray-600 hover:bg-gray-50 hover:text-gray-900 group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                                <span class="material-icons mr-3 text-gray-400">webhook</span>
+                                Webhooks
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-8">
+                        <h3 class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Analytics</h3>
+                        <div class="mt-2 space-y-1">
+                            <a href="#" class="text-gray-600 hover:bg-gray-50 hover:text-gray-900 group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                                <span class="material-icons mr-3 text-gray-400">search</span>
+                                Search Performance
+                            </a>
+                            <a href="#" class="text-gray-600 hover:bg-gray-50 hover:text-gray-900 group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                                <span class="material-icons mr-3 text-gray-400">psychology</span>
+                                Matching Engine
+                            </a>
+                            <a href="#" class="text-gray-600 hover:bg-gray-50 hover:text-gray-900 group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                                <span class="material-icons mr-3 text-gray-400">security</span>
+                                Audit Logs
+                                <span class="ml-auto bg-red-100 text-red-600 text-xs px-2 py-1 rounded-full">HIPAA</span>
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-8">
+                        <h3 class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">System</h3>
+                        <div class="mt-2 space-y-1">
+                            <a href="#" class="text-gray-600 hover:bg-gray-50 hover:text-gray-900 group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                                <span class="material-icons mr-3 text-gray-400">admin_panel_settings</span>
+                                RBAC Management
+                            </a>
+                            <a href="#" class="text-gray-600 hover:bg-gray-50 hover:text-gray-900 group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                                <span class="material-icons mr-3 text-gray-400">storage</span>
+                                Database Health
+                            </a>
+                            <a href="#" class="text-gray-600 hover:bg-gray-50 hover:text-gray-900 group flex items-center px-3 py-2 text-sm font-medium rounded-md">
+                                <span class="material-icons mr-3 text-gray-400">settings</span>
+                                Configuration
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </aside>
+        <!-- @END_COMPONENT: Sidebar -->
+
+        <!-- @COMPONENT: MainContent [dashboard content area] -->
+        <main class="flex-1 overflow-auto">
+            <!-- @COMPONENT: TopBar [header with user info and actions] -->
+            <header class="bg-white shadow-sm border-b border-gray-200">
+                <div class="flex items-center justify-between h-16 px-6">
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-900">Dashboard Overview</h2>
+                        <p class="text-sm text-gray-500">Monitor your B2B nutrition platform performance</p>
+                    </div>
+                    
+                    <div class="flex items-center space-x-4">
+                        <div class="flex items-center space-x-2 text-sm text-gray-500">
+                            <span class="material-icons text-xs">access_time</span>
+                            <span>Last updated: <span data-bind="lastUpdated">2 minutes ago</span></span>
+                        </div>
+                        
+                        <div class="flex items-center space-x-2">
+                            <div class="w-2 h-2 bg-green-400 rounded-full"></div>
+                            <span class="text-sm text-gray-700">System Healthy</span>
+                        </div>
+                        
+                        <div class="flex items-center">
+                            <div class="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+                                <span class="material-icons text-gray-600 text-sm">person</span>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm font-medium text-gray-700" data-bind="userName">Admin User</p>
+                                <p class="text-xs text-gray-500" data-bind="userRole">superadmin</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+            <!-- @END_COMPONENT: TopBar -->
+
+            <div class="p-6">
+                <!-- @COMPONENT: MetricsGrid [key performance indicators] -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-blue-100 rounded-lg">
+                                <span class="material-icons text-blue-600">speed</span>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Search API P95</p>
+                                <p class="text-2xl font-semibold text-gray-900" data-bind="searchP95">245ms</p>
+                                <p class="text-sm text-green-600">↓ 12% from last week</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-purple-100 rounded-lg">
+                                <span class="material-icons text-purple-600">psychology</span>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Matches API P95</p>
+                                <p class="text-2xl font-semibold text-gray-900" data-bind="matchesP95">387ms</p>
+                                <p class="text-sm text-green-600">Within SLO (&lt;500ms)</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-orange-100 rounded-lg">
+                                <span class="material-icons text-orange-600">upload_file</span>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">Ingestion Jobs</p>
+                                <p class="text-2xl font-semibold text-gray-900" data-bind="dailyJobs">47</p>
+                                <p class="text-sm text-gray-500">Today (3 running)</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-green-100 rounded-lg">
+                                <span class="material-icons text-green-600">trending_up</span>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-500">System Availability</p>
+                                <p class="text-2xl font-semibold text-gray-900" data-bind="availability">99.97%</p>
+                                <p class="text-sm text-green-600">Above target (99.9%)</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- @END_COMPONENT: MetricsGrid -->
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <!-- @COMPONENT: ActiveJobsCard [real-time ingestion monitoring] -->
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-lg font-medium text-gray-900">Active Ingestion Jobs</h3>
+                                <span class="bg-orange-100 text-orange-800 text-xs font-medium px-2.5 py-0.5 rounded-full" data-bind="activeJobsCount">3 Running</span>
+                            </div>
+                        </div>
+                        <div class="p-6">
+                            <!-- @MAP: activeJobs.map(job => ( -->
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                    <div class="flex items-center">
+                                        <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                            <span class="material-icons text-blue-600 text-sm">business</span>
+                                        </div>
+                                        <div class="ml-3">
+                                            <p class="text-sm font-medium text-gray-900" data-mock="true">HealthCorp Products CSV</p>
+                                            <p class="text-sm text-gray-500" data-mock="true">1.2M rows • Started 23 mins ago</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <div class="w-32 bg-gray-200 rounded-full h-2 mr-3">
+                                            <div class="bg-blue-600 h-2 rounded-full" style="width: 67%" data-bind="job.progress"></div>
+                                        </div>
+                                        <span class="text-sm font-medium text-gray-900" data-bind="job.progressPercent">67%</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                    <div class="flex items-center">
+                                        <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                                            <span class="material-icons text-green-600 text-sm">business</span>
+                                        </div>
+                                        <div class="ml-3">
+                                            <p class="text-sm font-medium text-gray-900" data-mock="true">NutriMax Customer Sync</p>
+                                            <p class="text-sm text-gray-500" data-mock="true">850K rows • Started 8 mins ago</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <div class="w-32 bg-gray-200 rounded-full h-2 mr-3">
+                                            <div class="bg-green-600 h-2 rounded-full" style="width: 89%" data-bind="job.progress"></div>
+                                        </div>
+                                        <span class="text-sm font-medium text-gray-900" data-bind="job.progressPercent">89%</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="flex items-center justify-between p-4 bg-red-50 rounded-lg border border-red-200">
+                                    <div class="flex items-center">
+                                        <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                                            <span class="material-icons text-red-600 text-sm">error</span>
+                                        </div>
+                                        <div class="ml-3">
+                                            <p class="text-sm font-medium text-gray-900" data-mock="true">FreshFoods Product Import</p>
+                                            <p class="text-sm text-red-600" data-mock="true">Failed • Validation errors in 847 rows</p>
+                                        </div>
+                                    </div>
+                                    <button class="text-sm text-red-600 hover:text-red-800 font-medium" data-event="click:viewErrors">
+                                        View Errors
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- @END_MAP )) -->
+                            
+                            <div class="mt-4 text-center">
+                                <button class="text-sm text-primary-600 hover:text-primary-800 font-medium" data-event="click:viewAllJobs">
+                                    View All Jobs
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- @END_COMPONENT: ActiveJobsCard -->
+
+                    <!-- @COMPONENT: DatabaseHealthCard [partition and replica status] -->
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <h3 class="text-lg font-medium text-gray-900">Database Health</h3>
+                        </div>
+                        <div class="p-6">
+                            <div class="space-y-6">
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-sm font-medium text-gray-700">Primary Database</span>
+                                        <div class="flex items-center">
+                                            <div class="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
+                                            <span class="text-sm text-green-600">Healthy</span>
+                                        </div>
+                                    </div>
+                                    <div class="text-sm text-gray-500">
+                                        <p>CPU: <span data-bind="primaryCpu">23%</span> • Memory: <span data-bind="primaryMemory">67%</span></p>
+                                        <p>Active connections: <span data-bind="primaryConnections">142/200</span></p>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-sm font-medium text-gray-700">Read Replicas</span>
+                                        <div class="flex items-center">
+                                            <div class="w-2 h-2 bg-yellow-400 rounded-full mr-2"></div>
+                                            <span class="text-sm text-yellow-600">Lag: 1.2s</span>
+                                        </div>
+                                    </div>
+                                    <div class="text-sm text-gray-500">
+                                        <p>Replica 1: <span data-bind="replica1Status">Healthy</span> • Lag: <span data-bind="replica1Lag">0.8s</span></p>
+                                        <p>Replica 2: <span data-bind="replica2Status">Healthy</span> • Lag: <span data-bind="replica2Lag">1.2s</span></p>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-sm font-medium text-gray-700">Partitioning Status</span>
+                                        <div class="flex items-center">
+                                            <div class="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
+                                            <span class="text-sm text-green-600">Optimal</span>
+                                        </div>
+                                    </div>
+                                    <div class="text-sm text-gray-500">
+                                        <p>Products: <span data-bind="productPartitions">752 partitions</span> across <span data-bind="productVendors">47 vendors</span></p>
+                                        <p>Customers: <span data-bind="customerPartitions">1,504 partitions</span> across <span data-bind="customerVendors">47 vendors</span></p>
+                                    </div>
+                                </div>
+                                
+                                <div class="bg-blue-50 p-4 rounded-lg">
+                                    <div class="flex">
+                                        <span class="material-icons text-blue-600 text-sm mr-2">info</span>
+                                        <div>
+                                            <p class="text-sm font-medium text-blue-900">Maintenance Window</p>
+                                            <p class="text-sm text-blue-700">Next scheduled: <span data-bind="nextMaintenance">Sunday 2:00 AM EST</span></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- @END_COMPONENT: DatabaseHealthCard -->
+                </div>
+
+                <!-- @COMPONENT: RecentActivityTable [audit log preview] -->
+                <div class="bg-white rounded-lg shadow">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-lg font-medium text-gray-900">Recent Activity & Audit Log</h3>
+                            <div class="flex items-center space-x-2">
+                                <span class="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">HIPAA Monitored</span>
+                                <button class="text-sm text-primary-600 hover:text-primary-800 font-medium" data-event="click:exportAuditLog">
+                                    Export Log
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actor</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Entity</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <!-- @MAP: auditLogs.map(log => ( -->
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" data-mock="true">2024-01-15 14:32:17</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center">
+                                                <span class="material-icons text-gray-600 text-xs">person</span>
+                                            </div>
+                                            <div class="ml-2">
+                                                <div class="text-sm font-medium text-gray-900" data-mock="true">john.doe@healthcorp.com</div>
+                                                <div class="text-sm text-gray-500" data-mock="true">vendor_admin</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800" data-mock="true">
+                                            health_profile_read
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" data-mock="true">customer_health_profile</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" data-mock="true">HealthCorp</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            Success
+                                        </span>
+                                    </td>
+                                </tr>
+                                
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" data-mock="true">2024-01-15 14:28:41</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="w-6 h-6 bg-red-300 rounded-full flex items-center justify-center">
+                                                <span class="material-icons text-red-600 text-xs">security</span>
+                                            </div>
+                                            <div class="ml-2">
+                                                <div class="text-sm font-medium text-gray-900" data-mock="true">admin@odyssey.com</div>
+                                                <div class="text-sm text-gray-500" data-mock="true">superadmin</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800" data-mock="true">
+                                            break_glass_access
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" data-mock="true">customer_health_profile</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" data-mock="true">NutriMax</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                            Logged
+                                        </span>
+                                    </td>
+                                </tr>
+                                
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" data-mock="true">2024-01-15 14:15:22</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center">
+                                                <span class="material-icons text-gray-600 text-xs">smart_toy</span>
+                                            </div>
+                                            <div class="ml-2">
+                                                <div class="text-sm font-medium text-gray-900" data-mock="true">system</div>
+                                                <div class="text-sm text-gray-500" data-mock="true">automated</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800" data-mock="true">
+                                            webhook_delivery
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" data-mock="true">ingestion_job</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" data-mock="true">FreshFoods</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            Delivered
+                                        </span>
+                                    </td>
+                                </tr>
+                                
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" data-mock="true">2024-01-15 13:47:18</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center">
+                                                <span class="material-icons text-gray-600 text-xs">person</span>
+                                            </div>
+                                            <div class="ml-2">
+                                                <div class="text-sm font-medium text-gray-900" data-mock="true">ops@nutrimax.com</div>
+                                                <div class="text-sm text-gray-500" data-mock="true">vendor_operator</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800" data-mock="true">
+                                            csv_ingestion_start
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" data-mock="true">ingestion_job</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" data-mock="true">NutriMax</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                            Processing
+                                        </span>
+                                    </td>
+                                </tr>
+                                <!-- @END_MAP )) -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="px-6 py-4 border-t border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <p class="text-sm text-gray-700">
+                                Showing <span class="font-medium" data-bind="auditPageStart">1</span> to <span class="font-medium" data-bind="auditPageEnd">4</span> of <span class="font-medium" data-bind="auditTotal">2,847</span> audit entries
+                            </p>
+                            <div class="flex items-center space-x-2">
+                                <button class="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50" disabled data-event="click:previousPage">
+                                    Previous
+                                </button>
+                                <button class="px-3 py-1 text-sm text-primary-600 hover:text-primary-800" data-event="click:nextPage">
+                                    Next
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- @END_COMPONENT: RecentActivityTable -->
+
+                <!-- @COMPONENT: QuickActionsGrid [common administrative tasks] -->
+                <div class="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="p-3 bg-blue-100 rounded-lg">
+                                <span class="material-icons text-blue-600">upload_file</span>
+                            </div>
+                            <div class="ml-4">
+                                <h4 class="text-lg font-medium text-gray-900">Start CSV Import</h4>
+                                <p class="text-sm text-gray-500">Upload and process product or customer data</p>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <button class="w-full bg-primary-600 text-white py-2 px-4 rounded-md hover:bg-primary-700 transition-colors" data-event="click:startCsvImport">
+                                Upload CSV File
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="p-3 bg-purple-100 rounded-lg">
+                                <span class="material-icons text-purple-600">sync</span>
+                            </div>
+                            <div class="ml-4">
+                                <h4 class="text-lg font-medium text-gray-900">API Sync</h4>
+                                <p class="text-sm text-gray-500">Sync data from external vendor APIs</p>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <button class="w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 transition-colors" data-event="click:configureApiSync">
+                                Configure Sync
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="p-3 bg-green-100 rounded-lg">
+                                <span class="material-icons text-green-600">health_and_safety</span>
+                            </div>
+                            <div class="ml-4">
+                                <h4 class="text-lg font-medium text-gray-900">Health Analytics</h4>
+                                <p class="text-sm text-gray-500">Review matching performance and health insights</p>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <button class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition-colors" data-event="click:viewHealthAnalytics">
+                                View Analytics
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <!-- @END_COMPONENT: QuickActionsGrid -->
+            </div>
+        </main>
+        <!-- @END_COMPONENT: MainContent -->
+    </div>
+    <!-- @END_COMPONENT: MainLayout -->
+
+    <!-- @COMPONENT: NotificationToast [system feedback] -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2">
+        <!-- Toasts will be dynamically inserted here -->
+    </div>
+    <!-- @END_COMPONENT: NotificationToast -->
+
+    <script>
+        // TODO: Implement business logic, API calls, and state management
+        
+        (function() {
+            // Simulate real-time updates for demo purposes
+            // In production, this would connect to WebSocket or polling endpoints
+            
+            function updateMetrics() {
+                // TODO: Fetch real metrics from /api/v1/metrics endpoint
+                console.log('Updating dashboard metrics...');
+            }
+            
+            function refreshAuditLog() {
+                // TODO: Fetch latest audit entries from /api/v1/audit endpoint
+                console.log('Refreshing audit log...');
+            }
+            
+            function checkJobStatus() {
+                // TODO: Poll /api/v1/jobs endpoint for active job status
+                console.log('Checking ingestion job status...');
+            }
+            
+            // Simulate periodic updates
+            setInterval(updateMetrics, 30000); // Update metrics every 30 seconds
+            setInterval(refreshAuditLog, 60000); // Refresh audit log every minute
+            setInterval(checkJobStatus, 5000); // Check jobs every 5 seconds
+            
+            // Event handlers for user actions
+            document.addEventListener('click', function(e) {
+                const target = e.target.closest('[data-event]');
+                if (!target) return;
+                
+                const event = target.getAttribute('data-event');
+                
+                switch(event) {
+                    case 'click:startCsvImport':
+                        // TODO: Open CSV import modal with TUS upload
+                        console.log('Starting CSV import...');
+                        break;
+                    case 'click:configureApiSync':
+                        // TODO: Open API connector configuration
+                        console.log('Configuring API sync...');
+                        break;
+                    case 'click:viewHealthAnalytics':
+                        // TODO: Navigate to health analytics dashboard
+                        console.log('Opening health analytics...');
+                        break;
+                    case 'click:viewErrors':
+                        // TODO: Show ingestion error details
+                        console.log('Viewing ingestion errors...');
+                        break;
+                    case 'click:viewAllJobs':
+                        // TODO: Navigate to full jobs list
+                        console.log('Showing all jobs...');
+                        break;
+                    case 'click:exportAuditLog':
+                        // TODO: Export audit log as CSV
+                        console.log('Exporting audit log...');
+                        break;
+                    case 'click:nextPage':
+                    case 'click:previousPage':
+                        // TODO: Implement pagination
+                        console.log('Navigating audit log pages...');
+                        break;
+                }
+            });
+            
+            // Initialize dashboard
+            updateMetrics();
+            refreshAuditLog();
+            checkJobStatus();
+        })();
+    </script>
+</body>
+</html>
