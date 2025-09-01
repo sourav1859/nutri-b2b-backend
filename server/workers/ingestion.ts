@@ -8,6 +8,9 @@ import type { QueueJob } from '../lib/queue';
 import csvParser from 'csv-parser';
 import { Readable } from 'stream';
 
+
+const CSV_BUCKET = process.env.SUPABASE_CSV_BUCKET ?? "csv-uploads";
+
 export interface IngestionResult {
   processed: number;
   succeeded: number;
@@ -28,14 +31,17 @@ export async function processIngestionJob(job: QueueJob): Promise<IngestionResul
   console.log(`Starting ${mode} ingestion job ${jobId} for vendor ${vendorId}`);
 
   try {
-    // Download file from Supabase Storage
-    const filePath = `${vendorId}/${jobId}/data.csv`;
+    // Use the exact path & bucket that the API layered in during /jobs and /jobs/:id/upload.
+    const bucket = params?.bucket || CSV_BUCKET;             // <= use params.bucket if present
+    const filePath = params?.path 
+      || `vendors/${vendorId}/jobs/${jobId}/data.csv`;       // <= default to your upload path
+
     const { data: fileData, error } = await supabaseAdmin.storage
-      .from('csv-uploads')
+      .from(bucket)
       .download(filePath);
 
     if (error) {
-      throw new Error(`Failed to download file: ${error.message}`);
+      throw new Error(`Failed to download file: ${error?.message ?? "unknown error"}`)
     }
 
     const fileBuffer = await fileData.arrayBuffer();
@@ -422,7 +428,7 @@ async function generateErrorsCSV(
     // Upload errors CSV to Supabase Storage
     const errorFilePath = `${jobId}/errors.csv`;
     const { error } = await supabaseAdmin.storage
-      .from('csv-uploads')
+      .from(CSV_BUCKET)
       .upload(errorFilePath, csvContent, {
         contentType: 'text/csv',
         upsert: true
