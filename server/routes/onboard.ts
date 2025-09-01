@@ -251,6 +251,7 @@ router.post("/self", async (req: Request, res: Response) => {
     // 5) Ensure user_links(user_id, vendor_id, role)
     trace.push("user_link.ensure");
     await ensureUserLink(dbUser.id, vendorRow.id);
+    await sb.from("users").update({ vendor_id: vendorRow.id }).eq("id", dbUser.id);
 
     return res.status(200).json({
       ok: true,

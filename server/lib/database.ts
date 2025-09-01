@@ -1,7 +1,6 @@
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 function sslFor(url: string | undefined) {
   // if you use Supabase/remote, keep this as 'require' or 'prefer'
@@ -46,10 +45,10 @@ if (replicaPool !== primaryPool) {
 }
 
 // optional debug
-export async function query(text: string, values: any[]) {
-  if (process.env.DEBUG_SQL) {
-    console.log("[SQL]", text);
-    console.log("[SQL params]", values);
-  }
-  return pool.query(text, values);
-}
+// export async function query(text: string, values: any[]) {
+//   if (process.env.DEBUG_SQL) {
+//     console.log("[SQL]", text);
+//     console.log("[SQL params]", values);
+//   }
+//   return pool.query(text, values);
+// }
