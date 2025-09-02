@@ -1,7 +1,7 @@
 // server/services/matching.ts
 import type { Request } from "express";
 import Redis from "ioredis";
-import { db, readDb } from "../lib/database";
+import { db, readDb } from "../lib/database.js";
 import {
   products,
   customers,
@@ -11,7 +11,7 @@ import {
   dietRules,
 } from "@shared/schema";
 import { and, eq, desc, sql } from "drizzle-orm";
-import { auditAction } from "../lib/audit";
+import { auditAction } from "../lib/audit.js";
 
 // Optional Redis (already in your repo)
 const redis = process.env.REDIS_URL ? new Redis(process.env.REDIS_URL) : null;

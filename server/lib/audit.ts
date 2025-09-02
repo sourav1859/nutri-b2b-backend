@@ -1,4 +1,4 @@
-import { db } from "./database";
+import { db } from "./database.js";
 import { auditLog } from "@shared/schema";
 import type { InsertAuditLogEntry, AuthContext } from "@shared/schema";
 import type { Request } from "express";

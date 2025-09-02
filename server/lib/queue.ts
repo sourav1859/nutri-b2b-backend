@@ -1,4 +1,4 @@
-import { db } from "./database";
+import { db } from "./database.js";
 import { ingestionJobs } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 

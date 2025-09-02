@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import "dotenv/config";
-import { queue } from "../server/lib/queue";
-import { processIngestionJob } from "../server/workers/ingestion";
+import { queue } from "../server/lib/queue.js";
+import { processIngestionJob } from "../server/workers/ingestion.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!["GET", "POST"].includes(req.method || "")) {
