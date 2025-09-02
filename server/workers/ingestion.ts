@@ -2,7 +2,7 @@ import { db } from '../lib/database.js';
 import { storage } from '../storage.js';
 import { supabaseAdmin } from '../lib/supabase.js';
 import { emitWebhookEvent } from '../lib/webhooks.js';
-import { stgProducts, stgCustomers, products, customers } from '@shared/schema';
+import { stgProducts, stgCustomers, products, customers } from '../../shared/schema.js';
 import { eq, sql } from 'drizzle-orm';
 import type { QueueJob } from '../lib/queue.js';
 import csvParser from 'csv-parser';

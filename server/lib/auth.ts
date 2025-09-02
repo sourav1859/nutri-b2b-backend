@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { Account, Client } from "appwrite";
 import { db } from "./database.js";
-import { users, userLinks } from "@shared/schema";
+import { users, userLinks } from "../../shared/schema.js";
 import { eq } from "drizzle-orm";
 
 // Augment Express.Request with `auth`

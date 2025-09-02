@@ -9,7 +9,7 @@ import {
   vendors,
   matchesCache,
   dietRules,
-} from "@shared/schema";
+} from "../../shared/schema.js";
 import { and, eq, desc, sql } from "drizzle-orm";
 import { auditAction } from "../lib/audit.js";
 

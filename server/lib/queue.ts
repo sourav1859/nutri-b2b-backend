@@ -1,5 +1,5 @@
 import { db } from "./database.js";
-import { ingestionJobs } from "@shared/schema";
+import { ingestionJobs } from "../../shared/schema.js";
 import { eq, sql } from "drizzle-orm";
 
 export interface QueueJob {

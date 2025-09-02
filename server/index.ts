@@ -7,7 +7,7 @@ import { setupVite, serveStatic, log } from "./vite.js";
 
 // DB + schema used by onboarding (unchanged behavior)
 import { db } from "./lib/database.js";
-import { users, vendors, userLinks } from "@shared/schema";
+import { users, vendors, userLinks } from "../shared/schema.js";
 import { eq, and } from "drizzle-orm";
 import onboardRouter from "./routes/onboard.js";
 import { queueProcessor } from "./workers/queue-processor.js";

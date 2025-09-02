@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction, RequestHandler } from "e
 import { storage } from "./storage.js";
 import { requireAuth } from "./lib/auth.js";
 import { and, eq, desc, sql } from "drizzle-orm";
-import * as schema from "@shared/schema";
+import * as schema from "../shared/schema.js";
 import { db } from "./lib/database.js";
 import { supabaseAdmin } from "./lib/supabase.js";     // service-role client
 import { queue } from "./lib/queue.js";                // your job queue
