@@ -1,11 +1,11 @@
 import type { Express, Request, Response, NextFunction, RequestHandler } from "express";
-import { storage } from "./storage";
-import { requireAuth } from "./lib/auth";
+import { storage } from "./storage.js";
+import { requireAuth } from "./lib/auth.js";
 import { and, eq, desc, sql } from "drizzle-orm";
 import * as schema from "@shared/schema";
-import { db } from "./lib/database";
-import { supabaseAdmin } from "./lib/supabase";     // service-role client
-import { queue } from "./lib/queue";                // your job queue
+import { db } from "./lib/database.js";
+import { supabaseAdmin } from "./lib/supabase.js";     // service-role client
+import { queue } from "./lib/queue.js";                // your job queue
 import { randomUUID } from "crypto";
 import Busboy from 'busboy';
 import { createClient } from "@supabase/supabase-js";

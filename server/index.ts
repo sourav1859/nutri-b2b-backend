@@ -2,15 +2,15 @@ import express, { type Request, type Response, type NextFunction } from "express
 import "dotenv/config";
 import http from "http";
 
-import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import { registerRoutes } from "./routes.js";
+import { setupVite, serveStatic, log } from "./vite.js";
 
 // DB + schema used by onboarding (unchanged behavior)
-import { db } from "./lib/database";
+import { db } from "./lib/database.js";
 import { users, vendors, userLinks } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
-import onboardRouter from "./routes/onboard";
-import { queueProcessor } from "./workers/queue-processor";
+import onboardRouter from "./routes/onboard.js";
+import { queueProcessor } from "./workers/queue-processor.js";
 
 // Appwrite SDK for onboarding (unchanged behavior)
 import {

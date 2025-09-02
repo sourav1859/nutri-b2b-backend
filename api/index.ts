@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import express, { type Request, type Response, type NextFunction } from "express";
 import "dotenv/config";
-import onboardRouter from "../server/routes/onboard";
-import { registerRoutes } from "../server/routes";
+import onboardRouter from "../server/routes/onboard.js";
+import { registerRoutes } from "../server/routes.js";
 
 let appPromise: Promise<import("express").Express> | null = null;
 

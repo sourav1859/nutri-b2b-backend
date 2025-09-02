@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction, RequestHandler } from "express";
 import crypto from "crypto";
-import { db } from "./database";
+import { db } from "./database.js";
 import { idempotencyKeys } from "@shared/schema";
 import { and, eq } from "drizzle-orm";
 

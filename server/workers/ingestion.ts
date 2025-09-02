@@ -1,10 +1,10 @@
-import { db } from '../lib/database';
-import { storage } from '../storage';
-import { supabaseAdmin } from '../lib/supabase';
-import { emitWebhookEvent } from '../lib/webhooks';
+import { db } from '../lib/database.js';
+import { storage } from '../storage.js';
+import { supabaseAdmin } from '../lib/supabase.js';
+import { emitWebhookEvent } from '../lib/webhooks.js';
 import { stgProducts, stgCustomers, products, customers } from '@shared/schema';
 import { eq, sql } from 'drizzle-orm';
-import type { QueueJob } from '../lib/queue';
+import type { QueueJob } from '../lib/queue.js';
 import csvParser from 'csv-parser';
 import { Readable } from 'stream';
 

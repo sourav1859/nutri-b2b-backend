@@ -1,12 +1,12 @@
 import { type Vendor, type InsertVendor } from "@shared/schema";
-import { db } from "./lib/database";
+import { db } from "./lib/database.js";
 import {
   vendors, users, products, customers,
   customerHealthProfiles, ingestionJobs, auditLog,
   customerWhitelists, customerBlacklists, customerConsents, matchesCache
 } from "@shared/schema";
 import { eq, and, desc, gte, lte, sql, count } from "drizzle-orm";
-import { calculateHealthMetrics } from "./lib/health";
+import { calculateHealthMetrics } from "./lib/health.js";
 
 
 
