@@ -203,7 +203,7 @@ export function registerRoutes(app: Express) {
     const s: any = storage as any;
     const vendorId = req.auth?.vendorId;
     if (typeof s.getProduct === "function") {
-      const product = await s.getProduct(vendorId, req.params.id);
+      const product = await s.getProduct(req.params.id, vendorId);
       if (!product) return problem(res, 404, "Product not found", req);
       return ok(res, product);
     }
@@ -304,9 +304,14 @@ export function registerRoutes(app: Express) {
     // console.log("[/customers] q:", q, "vendorId:", vendorId);
   
     if (q) {
-      // Use the explicit search path (array payload, like products)
-      const items = await s.searchCustomersFTS(vendorId, q, { limit, page });
-      return ok(res, items);
+      // Use the adapter's implemented search
+      const itemsOrArray =
+        typeof s.searchCustomers === "function"
+          ? await s.searchCustomers(vendorId, q, { limit, page })
+          : await s.getCustomers(vendorId, { limit, page }); // fallback (non-search)
+    
+      // Frontend accepts array or {data:[...]} — keep it simple here
+      return ok(res, (itemsOrArray?.items ?? itemsOrArray) || []);
     }
   
     // Fall back to the list (still supports pagination)
@@ -333,7 +338,7 @@ export function registerRoutes(app: Express) {
     const id       = String(req.params.id);
     if (!vendorId) return problem(res, 403, "No vendor access", req);
 
-    const b = req.body ?? {};
+    const b = (req.body ?? {}) as any;
 
     // Normalize tags from multiple shapes → array
     const normalizeTags = (v: any): string[] | undefined => {
@@ -346,31 +351,40 @@ export function registerRoutes(app: Express) {
     };
 
     // Build DB update object (snake_case column names)
-    const updates: any = {};
+    const updates: Partial<typeof schema.customers.$inferInsert> = {};
 
-    // Accept either `fullName` or `name` from client
     if (b.fullName !== undefined || b.name !== undefined) {
-      updates.full_name = (b.fullName ?? b.name) as string;
+      updates.fullName = String(b.fullName ?? b.name).trim();
     }
-    if (b.email !== undefined) updates.email = b.email as string;
-    if (b.phone !== undefined) updates.phone = b.phone as string;
+    if (b.email !== undefined) updates.email = String(b.email).trim();
+    if (b.phone !== undefined) updates.phone = String(b.phone).trim();
 
-    // Tags: accept `tags` (array or CSV) or `customTags`
-    const tags = normalizeTags(b.tags);
-    if (tags !== undefined) updates.custom_tags = tags;
+    const tags = Array.isArray(b.tags) ? b.tags : b.customTags;
+    if (tags !== undefined) updates.customTags = tags;
 
-    // Optional status, if you use it on the customers table
-    if (b.status !== undefined) updates.status = b.status;
+    // Location (jsonb)
+    if (b.location && typeof b.location === "object") {
+      const l = b.location;
+      updates.location = {
+        city: typeof l.city === "string" ? l.city.trim() : null,
+        state: typeof l.state === "string" ? l.state.trim() : null,
+        postal: typeof l.postal === "string" ? l.postal.trim() : null,
+        country: typeof l.country === "string" ? l.country.trim().toUpperCase() : null,
+      } as any;
+    }
 
-    // Audit columns
-    updates.updated_at = new Date().toISOString();
-    if (userId) updates.updated_by = userId;
+    if (req.user?.id) updates.updatedBy = req.user.id;
+
+    // 🔎 Debug
+    console.log('[PATCH /customers/:id] body=', b);
+    console.log('[PATCH /customers/:id] updates=', updates);
+        
+    const base = await storage.updateCustomer(id, vendorId, updates);
+    if (!base) return problem(res, 404, "Customer not found", req);
 
     try {
-      const row = await storage.updateCustomer(id, vendorId, updates);
-      if (!row) return problem(res, 404, "Customer not found", req);
-      // IMPORTANT: return the updated row (not a pre-update copy)
-      return res.status(200).json(row);
+      const withHealth = await storage.getCustomerWithProfile(id, vendorId);
+      return ok(res, withHealth ?? base);
     } catch (e: any) {
       console.error("[PATCH /customers/:id]", e);
       return problem(res, 400, e?.message || "Update failed", req);

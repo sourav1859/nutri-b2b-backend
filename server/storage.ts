@@ -504,13 +504,36 @@ export class DatabaseStorage implements IStorage {
     return await db.insert(customers).values(customerList).returning();
   }
 
-  async updateCustomer(id: string, vendorId: string, updates: Partial<InsertCustomer>): Promise<Customer | undefined> {
-    const result = await db
+  async updateCustomer(id: string, vendorId: string, updates: any) {
+    // Build an allow-list (camelCase keys that match Drizzle columns)
+    const allowed: any = {};
+    if (updates.fullName !== undefined) allowed.fullName = String(updates.fullName).trim();
+    if (updates.email !== undefined) allowed.email = String(updates.email).trim();
+    if (updates.phone !== undefined) allowed.phone = String(updates.phone).trim();
+    if (updates.customTags !== undefined) allowed.customTags = updates.customTags; // string[] | null
+    if (updates.updatedBy !== undefined) allowed.updatedBy = updates.updatedBy;
+  
+    // Nothing to update? Return current row to satisfy the interface type.
+    if (Object.keys(allowed).length === 0) {
+      return await this.getCustomer(id, vendorId);
+    }
+  
+    // 🔎 High-signal debug
+    console.log('[storage.updateCustomer] allowed ->', allowed);
+  
+    // Ensure at top of file: import { and, eq, sql } from "drizzle-orm";
+    await db
       .update(customers)
-      .set({ ...updates, updatedAt: sql`now()` })
-      .where(and(eq(customers.id, id), eq(customers.vendorId, vendorId)))
-      .returning();
-    return result[0];
+      .set({ ...allowed, updatedAt: sql`now()` })
+      .where(and(eq(customers.id, id), eq(customers.vendorId, vendorId)));
+  
+    // IMPORTANT: return the **full base** customer to match IStorage
+    const row = await this.getCustomer(id, vendorId);
+  
+    // 🔎 Debug the value after UPDATE
+    if (row) console.log('[storage.updateCustomer] post-fetch fullName ->', row.fullName);
+  
+    return row; // type: Customer | undefined (matches IStorage)
   }
 
   async deleteCustomer(id: string, vendorId: string): Promise<boolean> {
