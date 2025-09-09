@@ -268,7 +268,7 @@ export function registerRoutes(app: Express) {
       regulatoryCodes: toArr(b.regulatory_codes ?? b.regulatoryCodes) ?? null,
 
       // your schema has ingredients as a single text field
-      ingredients: Array.isArray(b.ingredients) ? b.ingredients.join(", ") : (b.ingredients ?? null),
+      ingredients: toArr(b.ingredients) ?? null,
 
       sourceUrl: b.source_url ?? b.sourceUrl ?? null,
     };

@@ -89,7 +89,7 @@ export const products = pgTable("products", {
   // Optional fields
   barcode: text("barcode"),
   gtinType: gtinTypeEnum("gtin_type"),
-  ingredients: text("ingredients"),
+  ingredients:  text("ingredients").array(),
   subCategoryId: uuid("sub_category_id"),
   cuisineId: uuid("cuisine_id"),
   marketId: uuid("market_id"),

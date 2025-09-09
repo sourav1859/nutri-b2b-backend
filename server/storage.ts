@@ -153,13 +153,11 @@ function genExternalId() {
 }
 
 export class DatabaseStorage implements IStorage {
+  
   async getUser(id: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
     return result[0];
   }
-
-  
-
 
   async getUserByEmail(email: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
