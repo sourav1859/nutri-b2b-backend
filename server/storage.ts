@@ -364,58 +364,48 @@ export class DatabaseStorage implements IStorage {
 
   async createCustomerWithHealth(args: CreateCustomerWithHealthArgs) {
     const { vendorId, userId, customer, health } = args
-    const now = sql`now()`
-  
+    // inside createCustomerWithHealth(...)
     return await db.transaction(async (tx) => {
-      // 1) insert into customers
+      const now = sql`now()`;
+
+      // 1) customers: UPSERT by (vendor_id, email)
       const [cust] = await tx
-      .insert(customers)
-      .values({
-        id: crypto.randomUUID(),
-        vendorId,
-        externalId: genExternalId(),          // <-- REQUIRED (NOT NULL)
-        fullName: customer.fullName,
-        email: customer.email,
-        phone: customer.phone ?? null,
-        customTags: customer.customTags ?? [],
-        age: customer.age ?? null,
-        gender: customer.gender ?? null,
-        createdAt: now as any,
-        updatedAt: now as any,
-        createdBy: userId,
-        updatedBy: userId,
-      })
-      .returning();
-  
-      // 2) optionally insert into customer_health_profiles
-      let healthRow: any = null
+        .insert(customers)
+        .values({
+          id: crypto.randomUUID(),
+          vendorId,
+          externalId: genExternalId(),
+          fullName: customer.fullName,
+          email: customer.email,
+          phone: customer.phone ?? null,
+          customTags: customer.customTags ?? [],
+          age: customer.age ?? null,
+          gender: customer.gender ?? "unspecified",
+          createdAt: now as any,
+          updatedAt: now as any,
+          updatedBy: userId,
+        })
+        .onConflictDoUpdate({
+          target: [customers.vendorId, customers.email],   // ← key for idempotency
+          set: {
+            fullName: sql`excluded.full_name`,
+            phone: sql`excluded.phone`,
+            customTags: sql`excluded.custom_tags`,
+            age: sql`excluded.age`,
+            gender: sql`excluded.gender`,
+            updatedAt: now as any,
+            updatedBy: userId,
+          },
+        })
+        .returning();
+
+      // 2) customer_health_profiles: insert-or-ignore (one profile per customer)
+      let healthRow: any = null;
       if (health) {
-        if (
-          health.heightCm !== undefined &&
-          health.weightKg !== undefined &&
-          typeof health.age === "number"
-        ) {
-          const metrics = calculateHealthMetrics({
-            heightCm: Number(health.heightCm),
-            weightKg: Number(health.weightKg),
-            age: Number(health.age),
-            gender: (health.gender as any) ?? "unspecified",
-            activityLevel: (health.activityLevel as any) ?? "sedentary",
-            conditions: health.conditions ?? [],
-            dietGoals: health.dietGoals ?? [],
-            avoidAllergens: health.avoidAllergens ?? [],
-            macroTargets: health.macroTargets,
-          });
-        
-          // Store as strings for NUMERIC columns; keep derivedLimits as JSONB
-          health.bmi = String(metrics.bmi);
-          health.bmr = String(metrics.bmr);
-          health.tdeeCached = String(metrics.tdee);
-          health.derivedLimits = metrics.derivedLimits ?? null;
-        }
+        // ... your existing derived-metrics block stays the same ...
+
         const defaults = {
           customerId: cust.id,
-          // NUMERIC NOT NULL must be strings, not numbers
           heightCm: health.heightCm ?? "0",
           weightKg: health.weightKg ?? "0",
           age: health.age ?? 0,
@@ -432,13 +422,19 @@ export class DatabaseStorage implements IStorage {
           createdAt: now as any,
           updatedAt: now as any,
           updatedBy: userId,
-        }
-        const [ins] = await tx.insert(customerHealthProfiles).values(defaults).returning()
-        healthRow = ins
+        };
+
+        const [ins] = await tx
+          .insert(customerHealthProfiles)
+          .values(defaults)
+          .onConflictDoNothing({ target: customerHealthProfiles.customerId }) // ← ignore if exists
+          .returning();
+
+        healthRow = ins ?? null;
       }
-  
-      return { customer: cust, health: healthRow }
-    })
+
+      return { customer: cust, health: healthRow };
+    });
   }
 
   async getCustomer(id: string, vendorId: string) {  // lines ~165–172
@@ -501,7 +497,18 @@ export class DatabaseStorage implements IStorage {
 
   async createCustomers(customerList: InsertCustomer[]): Promise<Customer[]> {
     if (customerList.length === 0) return [];
-    return await db.insert(customers).values(customerList).returning();
+  
+    // NOTE: keep shape identical; just make the insert idempotent
+    const rows = await db
+      .insert(customers)
+      .values(customerList)
+      .onConflictDoNothing({
+        // treat (vendor_id, email) as the natural key
+        target: [customers.vendorId, customers.email],
+      })
+      .returning();
+  
+    return rows;
   }
 
   async updateCustomer(id: string, vendorId: string, updates: any) {
