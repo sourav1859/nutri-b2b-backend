@@ -282,6 +282,88 @@ export function registerRoutes(app: Express) {
     }
   }));
 
+  // --- UPDATE product ---
+  app.put("/products/:id", withAuth(async (req: any, res) => {
+    const vendorId = req.auth?.vendorId;
+    if (!vendorId) return problem(res, 403, "No vendor access", req);
+    const id = req.params.id;
+
+    const b = req.body ?? {};
+    const toArr = (v: any): string[] | undefined => {
+      if (v == null) return undefined;
+      if (Array.isArray(v)) return v.filter(Boolean).map(String);
+      if (typeof v === "string") return v.split(",").map(s => s.trim()).filter(Boolean);
+      return undefined;
+    };
+    const toNumStr = (n: any): string | undefined => {
+      if (n === undefined || n === null || n === "") return undefined;
+      const s = String(n);
+      return isNaN(Number(s)) ? undefined : s;
+    };
+
+    // Partial update (only apply provided fields)
+    const updates: Partial<schema.InsertProduct> = {
+      externalId: (b.external_id ?? b.externalId ?? b.sku ?? undefined),
+      name: b.name ?? undefined,
+      description: b.description ?? undefined,
+      brand: b.brand ?? undefined,
+      status: (b.status ?? undefined) as any,
+
+      categoryId: b.category_id ?? b.categoryId ?? undefined,
+      subCategoryId: b.sub_category_id ?? b.subCategoryId ?? undefined,
+      cuisineId: b.cuisine_id ?? b.cuisineId ?? undefined,
+      marketId: b.market_id ?? b.marketId ?? undefined,
+
+      barcode: b.barcode ?? undefined,
+      gtinType: b.gtin_type ?? b.gtinType ?? undefined,
+
+      price: toNumStr(b.price) ?? undefined,
+      currency: (b.currency ?? undefined),
+
+      servingSize: b.serving_size ?? b.servingSize ?? undefined,
+      packageWeight: b.package_weight ?? b.packageWeight ?? undefined,
+
+      nutrition: b.nutrition ?? undefined,
+
+      dietaryTags: toArr(b.dietary_tags ?? b.dietaryTags ?? b.tags),
+      allergens: toArr(b.allergens),
+      certifications: toArr(b.certifications),
+      regulatoryCodes: toArr(b.regulatory_codes ?? b.regulatoryCodes),
+
+      ingredients: toArr(b.ingredients),
+
+      sourceUrl: b.source_url ?? b.sourceUrl ?? undefined,
+    };
+
+    Object.keys(updates).forEach(k => (updates as any)[k] === undefined && delete (updates as any)[k]);
+
+    try {
+      const s: any = storage as any;
+      if (typeof s.updateProduct !== "function") return problem(res, 404, "Update not supported", req);
+      const updated = await s.updateProduct(id, vendorId, updates);
+      if (!updated) return problem(res, 404, "Product not found", req);
+      return ok(res, updated);
+    } catch (err: any) {
+      return problem(res, 500, err?.message || "Failed to update product", req);
+    }
+  }));
+
+  // --- DELETE product ---
+  app.delete("/products/:id", withAuth(async (req: any, res) => {
+    const vendorId = req.auth?.vendorId;
+    if (!vendorId) return problem(res, 403, "No vendor access", req);
+    const id = req.params.id;
+    try {
+      const s: any = storage as any;
+      if (typeof s.deleteProduct !== "function") return problem(res, 404, "Delete not supported", req);
+      const okDel = await s.deleteProduct(id, vendorId);
+      if (!okDel) return problem(res, 404, "Product not found", req);
+      return ok(res, { ok: true });
+    } catch (err: any) {
+      return problem(res, 500, err?.message || "Failed to delete product", req);
+    }
+  }));
+
   // customers (paged)
   app.get("/customers", withAuth(async (req: any, res) => {
     const s: any = storage as any;
