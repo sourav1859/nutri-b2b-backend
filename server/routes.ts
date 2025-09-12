@@ -581,6 +581,8 @@ export function registerRoutes(app: Express) {
   // customer matches (uses services/matching if available)
   app.get("/matching/:customerId", withAuth(async (req: any, res) => {
     const customerId = String(req.params.customerId);
+    const limitRaw = Number(req.query.limit ?? req.query.top ?? 24);
+    const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, limitRaw)) : 24;
   
     // 1) Source of truth: vendor from the *customer* row
     const row = await db
@@ -591,18 +593,18 @@ export function registerRoutes(app: Express) {
   
     const vendorId: string | undefined = row?.[0]?.vendorId ?? req.auth?.vendorId;
     if (!vendorId) return ok(res, { data: [] });
-  
+    
+    let preferred: any[] = [];
     // 2) Try the service first
     const USE_SERVICE = process.env.USE_MATCHING_SERVICE === "1";
     if (USE_SERVICE) {
       try {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const svc = require("./services/matching");
-        if (typeof svc.getMatchesForCustomer === "function") {
-          const raw = await svc.getMatchesForCustomer(vendorId, customerId, 24);
-          const items = asArray(raw).map(withScorePct);
-          if (items.length) return ok(res, { data: items });
-        }
+       if (typeof svc.getMatchesForCustomer === "function") {
+         const raw = await svc.getMatchesForCustomer(vendorId, customerId, limit);
+         preferred = asArray(raw).map(withScorePct).slice(0, limit);
+       }
       } catch {
         // swallow & continue to fallback
       }
@@ -673,7 +675,7 @@ export function registerRoutes(app: Express) {
       })
       .filter(Boolean)
       .sort((a: any, b: any) => (b._score - a._score) || (b._updatedAtMs - a._updatedAtMs))
-      .slice(0, 24);
+      .slice(0, limit);
   
     return ok(res, { data: items });
   }));
