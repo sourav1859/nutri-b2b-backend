@@ -65,7 +65,7 @@ async function ensureBucket(name: string) {
 }
 
 function ok(res: Response, data: any) {
-  res.status(200).json(data);
+  return res.status(200).type("application/json").json(data);
 }
 
 // NORMALIZE service/fallback outputs to a plain array
@@ -76,6 +76,30 @@ const textArray = (a: string[]) =>
   (a && a.length)
     ? sql`ARRAY[${sql.join(a.map(x => sql`${x}`), sql`, `)}]::text[]`
     : sql`ARRAY[]::text[]`;
+
+// Merge multiple Policy objects the same way the service does
+type Policy = {
+  hard_limits?: Record<string, number>;
+  soft_limits?: Record<string, number>;
+  required_tags?: string[];
+  bonus_tags?: string[];
+  penalty_tags?: string[];
+};
+
+function mergePolicies(policies: Policy[]): Policy {
+  const out: Policy = { hard_limits: {}, soft_limits: {}, required_tags: [], bonus_tags: [], penalty_tags: [] };
+  for (const p of policies) {
+    if (p?.hard_limits)  Object.assign(out.hard_limits!, p.hard_limits);
+    if (p?.soft_limits)  Object.assign(out.soft_limits!, p.soft_limits);
+    if (p?.required_tags) out.required_tags!.push(...p.required_tags);
+    if (p?.bonus_tags)    out.bonus_tags!.push(...p.bonus_tags);
+    if (p?.penalty_tags)  out.penalty_tags!.push(...p.penalty_tags);
+  }
+  out.required_tags = Array.from(new Set(out.required_tags));
+  out.bonus_tags    = Array.from(new Set(out.bonus_tags));
+  out.penalty_tags  = Array.from(new Set(out.penalty_tags));
+  return out;
+}
 
 // GUARANTEE both _score (0..1) and score_pct (0..100) for the client
 const withScorePct = (p: any) => {
@@ -413,6 +437,37 @@ export function registerRoutes(app: Express) {
     return problem(res, 404, "Customer not found", req);
   }));
 
+  // GET /taxonomy/diets?top=10[&all=1]
+  app.get("/taxonomy/diets", withAuth(async (_req: any, res) => {
+    const top = Number.isFinite(+_req.query.top) ? Math.max(1, +_req.query.top) : 10;
+    const all = String(_req.query.all ?? "0") === "1";
+    const rows = await db.select().from(schema.taxTags).where(eq(schema.taxTags.active, true)).orderBy(schema.taxTags.label);
+    return ok(res, { data: all ? rows : rows.slice(0, top) });
+  }));
+
+  // GET /taxonomy/allergens?top=10[&all=1]
+  app.get("/taxonomy/allergens", withAuth(async (_req: any, res) => {
+    const top = Number.isFinite(+_req.query.top) ? Math.max(1, +_req.query.top) : 10;
+    const all = String(_req.query.all ?? "0") === "1";
+    const rows = await db.select().from(schema.taxAllergens).where(eq(schema.taxAllergens.active, true)).orderBy(schema.taxAllergens.label);
+    return ok(res, { data: all ? rows : rows.slice(0, top) });
+  }));
+
+  // GET /taxonomy/conditions?top=10[&all=1] (vendor-scoped)
+  app.get("/taxonomy/conditions", withAuth(async (req: any, res) => {
+    const vendorId = req.auth?.vendorId;
+    if (!vendorId) return ok(res, { data: [] });
+    const top = Number.isFinite(+req.query.top) ? Math.max(1, +req.query.top) : 10;
+    const all = String(req.query.all ?? "0") === "1";
+    const rows = await db
+      .select({ conditionCode: schema.dietRules.conditionCode })
+      .from(schema.dietRules)
+      .where(and(eq(schema.dietRules.vendorId, vendorId), eq(schema.dietRules.active, true)))
+      .groupBy(schema.dietRules.conditionCode)
+      .orderBy(schema.dietRules.conditionCode);
+    return ok(res, { data: all ? rows : rows.slice(0, top) });
+  }));
+
   // UPDATE customer (profile fields)
   app.patch("/customers/:id", withAuth(async (req: any, res) => {
     const vendorId = req.auth?.vendorId;
@@ -620,6 +675,7 @@ export function registerRoutes(app: Express) {
         avoidAllergens: chp.avoidAllergens,
         dietGoals:     chp.dietGoals,
         derivedLimits: chp.derivedLimits,
+        conditions:    chp.conditions,
       })
       .from(chp)
       .where(eq(chp.customerId, customerId))
@@ -629,37 +685,65 @@ export function registerRoutes(app: Express) {
     const avoid: string[] = Array.isArray(avoidRaw) ? avoidRaw : [avoidRaw].filter(Boolean);
     const goals  = cx?.[0]?.dietGoals ?? [];
     const limits = (cx?.[0]?.derivedLimits as any) ?? {};
-  
-    // vendor + active + NOT allergen conflicts
-    const base = await db
-      .select()
-      .from(p)
-      .where(and(
+    const conds = cx?.[0]?.conditions ?? [];
+
+    // Fetch vendor diet policies for the customer's conditions
+    const rules = conds.length
+    ? await db
+        .select({ policy: schema.dietRules.policy })
+        .from(schema.dietRules)
+        .where(and(
+          eq(schema.dietRules.vendorId, vendorId),
+          sql`${schema.dietRules.conditionCode} = ANY (${textArray(conds as string[])})`,
+          eq(schema.dietRules.active, true)
+        ))
+    : [];
+
+    // Merge policies into require/prefer/limits; combine with derivedLimits
+    const merged = mergePolicies((rules ?? []).map((r: any) => r.policy));
+    const requiredTags: string[] = merged.required_tags ?? [];
+    const preferTags  : string[] = Array.from(new Set([...(merged.bonus_tags ?? []), ...goals]));
+    const hardLimits  : Record<string, number> = { ...(merged.hard_limits ?? {}), ...limits };
+      
+    // vendor + active + NOT allergen conflicts (+ requiredTags if present)
+    const whereClause = requiredTags.length
+    ? and(
+        eq(p.vendorId, vendorId),
+        eq(p.status, "active"),
+        sql`NOT (coalesce(${p.allergens}, '{}') && ${textArray(avoid)})`,
+        sql`${textArray(requiredTags)} <@ coalesce(${p.dietaryTags}, '{}')`
+      )
+    : and(
         eq(p.vendorId, vendorId),
         eq(p.status, "active"),
         sql`NOT (coalesce(${p.allergens}, '{}') && ${textArray(avoid)})`
-      ))
-      .orderBy(desc(p.updatedAt))
-      .limit(200);
+      );
+
+    const base = await db
+    .select()
+    .from(p)
+    .where(whereClause)
+    .orderBy(desc(p.updatedAt))
+    .limit(200);
   
     // score like the service: preferences + small sodium penalty; only drop on *known* hard-limit exceed
     const now = Date.now();
     const items = base
       .map((r: any) => {
         // hard-limit reject only if value is known and exceeds (unchanged)
-        for (const [k, lim] of Object.entries(limits as Record<string, number>)) {
+        for (const [k, lim] of Object.entries(hardLimits as Record<string, number>)) {
           const v = r?.nutrition?.[k];
           if (v != null && Number.isFinite(Number(v)) && Number(v) > Number(lim)) return null;
         }
 
         // preference hit (unchanged)
         const tags: string[] = r.dietaryTags ?? [];
-        const hit = goals.length ? goals.filter(g => tags.includes(g)).length / goals.length : 0;
+        const hit = preferTags.length ? preferTags.filter(g => tags.includes(g)).length / preferTags.length : 0;
 
         // sodium soft penalty (unchanged)
         let penalty = 0;
-        if (r?.nutrition?.sodium_mg != null && limits?.sodium_mg) {
-          const v = Number(r.nutrition.sodium_mg), L = Number(limits.sodium_mg);
+        if (r?.nutrition?.sodium_mg != null && hardLimits?.sodium_mg) {
+          const v = Number(r.nutrition.sodium_mg), L = Number(hardLimits.sodium_mg);
           if (Number.isFinite(v) && Number.isFinite(L) && L > 0) {
             penalty = Math.min(0.2, Math.max(0, ((v - 0.5 * L) / (0.5 * L)) * 0.2));
           }
@@ -679,7 +763,134 @@ export function registerRoutes(app: Express) {
   
     return ok(res, { data: items });
   }));
-  
+
+  // PREVIEW matches with ad-hoc overrides (no persistence)
+  // POST /matching/:customerId/preview
+  app.post("/matching/:customerId/preview", withAuth(async (req: any, res) => {
+    try{
+      const customerId = String(req.params.customerId);
+      const limitRaw = Number(req.query.limit ?? req.body?.limit ?? 24);
+      const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(200, limitRaw)) : 24;
+
+      // Source vendor from the customer row
+      const row = await db
+        .select({ vendorId: schema.customers.vendorId })
+        .from(schema.customers)
+        .where(eq(schema.customers.id, customerId))
+        .limit(1);
+      const vendorId: string | undefined = row?.[0]?.vendorId ?? req.auth?.vendorId;
+      if (!vendorId) return ok(res, { data: [] });
+
+      // Load existing profile
+      const chp = schema.customerHealthProfiles;
+      const base = await db
+        .select({
+          avoidAllergens: chp.avoidAllergens,
+          dietGoals:     chp.dietGoals,
+          conditions:    chp.conditions,
+          derivedLimits: chp.derivedLimits,
+        })
+        .from(chp)
+        .where(eq(chp.customerId, customerId))
+        .limit(1);
+
+      const profile = {
+        avoidAllergens: base?.[0]?.avoidAllergens ?? [],
+        dietGoals:      base?.[0]?.dietGoals ?? [],
+        conditions:     base?.[0]?.conditions ?? [],
+        derivedLimits:  (base?.[0]?.derivedLimits as any) ?? {},
+      };
+
+      // Merge overrides (from UI) WITHOUT persisting
+      const b = (req.body ?? {}) as Partial<{ allergens: string[]; preferred: string[]; conditions: string[]; required: string[] }>;
+      const fromRequired = (b.required ?? []).filter(s => /^no\s+/i.test(s)).map(s => s.replace(/^no\s+/i, ""));
+      const preview = {
+        avoidAllergens: Array.from(new Set([...(profile.avoidAllergens ?? []), ...(b.allergens ?? []), ...fromRequired])),
+        dietGoals:      Array.from(new Set([...(profile.dietGoals ?? []), ...(b.preferred ?? [])])),
+        conditions:     Array.from(new Set([...(profile.conditions ?? []), ...(b.conditions ?? [])])),
+        derivedLimits:  profile.derivedLimits ?? {},
+      };
+
+      // Prefer service helper if enabled
+      if (process.env.USE_MATCHING_SERVICE === "1") {
+        try {
+          const svc = require("./services/matching");
+          if (typeof svc.getMatchesForCustomerWithOverrides === "function") {
+            const out = await svc.getMatchesForCustomerWithOverrides(vendorId, customerId, preview, limit, req);
+            return ok(res, { data: (out?.items ?? out ?? []).slice(0, limit) });
+          }
+        } catch { /* fall through to fallback */ }
+      }
+
+      // Fallback: apply vendor diet_rules + allergens + limits
+      const rules = preview.conditions?.length
+        ? await db.select({ policy: schema.dietRules.policy })
+            .from(schema.dietRules)
+            .where(and(
+              eq(schema.dietRules.vendorId, vendorId),
+              sql`${schema.dietRules.conditionCode} = ANY (${textArray(preview.conditions)})`,
+              eq(schema.dietRules.active, true)
+            ))
+        : [];
+      const merged = mergePolicies((rules ?? []).map((r: any) => r.policy));
+      const requiredTags: string[] = merged.required_tags ?? [];
+      const preferTags  : string[] = Array.from(new Set([...(merged.bonus_tags ?? []), ...(preview.dietGoals ?? [])]));
+      const hardLimits  : Record<string, number> = { ...(merged.hard_limits ?? {}), ...(preview.derivedLimits ?? {}) };
+
+      const p = schema.products;
+      const conds: any[] = [
+        eq(p.vendorId, vendorId),
+        eq(p.status, "active"),
+        sql`NOT (coalesce(${p.allergens}, '{}') && ${textArray(preview.avoidAllergens ?? [])})`,
+      ];
+      
+      if (requiredTags.length) {
+        conds.push(sql`${textArray(requiredTags)} <@ coalesce(${p.dietaryTags}, '{}')`);
+      }
+      
+      const baseRows = await db
+        .select()
+        .from(p)
+        .where(and(...conds))
+        .orderBy(desc(p.updatedAt))
+        .limit(500);
+
+      const now = Date.now();
+      const items = baseRows.map((r: any) => {
+        // Hard drops on known hard-limit exceed
+        for (const [k, lim] of Object.entries(hardLimits)) {
+          const v = r?.nutrition?.[k];
+          if (v != null && Number.isFinite(Number(v)) && Number(v) > Number(lim)) return null;
+        }
+        const tags: string[] = r.dietaryTags ?? [];
+        const hit = preferTags.length ? preferTags.filter(t => tags.includes(t)).length / preferTags.length : 0;
+
+        // light sodium soft-penalty if limit present
+        let penalty = 0;
+        if (r?.nutrition?.sodium_mg != null && hardLimits?.sodium_mg) {
+          const v = Number(r.nutrition.sodium_mg), L = Number(hardLimits.sodium_mg);
+          if (Number.isFinite(v) && Number.isFinite(L) && L > 0) {
+            penalty = Math.min(0.2, Math.max(0, ((v - 0.5 * L) / (0.5 * L)) * 0.2));
+          }
+        }
+
+        const updated = r.updatedAt ? new Date(r.updatedAt).getTime() : now;
+        const ageDays = Math.max(0, (now - updated) / 86_400_000);
+        const recency = Math.max(0, 1 - Math.min(ageDays / 90, 1));
+        const score01 = Math.max(0, Math.min(1, 0.6 + 0.4 * hit - penalty + 0.05 * recency));
+        return { ...r, _score: score01, score_pct: Math.round(score01 * 100), _updatedAtMs: updated };
+      }).filter(Boolean)
+        .sort((a: any, b: any) => (b._score - a._score) || (b._updatedAtMs - a._updatedAtMs))
+        .slice(0, limit);
+
+      return ok(res, { data: items });
+    } catch (err: any) {
+      // 🔴 without this, Express sends an HTML error page -> frontend .json() throws -> red popup
+      const message = err?.message ?? String(err);
+      return res.status(500).type("application/json").json({ error: message });
+    }
+  }));
+    
   app.delete("/customers/:id", withAuth(async (req: any, res) => {
     const vendorId = req.auth?.vendorId;
     const id = String(req.params.id);

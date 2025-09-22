@@ -258,3 +258,63 @@ export async function getMatchesForCustomer(
 
   return { items, cached: false, catalogVersion };
 }
+
+export async function getMatchesForCustomerWithOverrides(
+  vendorId: string,
+  customerId: string,
+  overrides: Partial<{ avoidAllergens: string[]; dietGoals: string[]; conditions: string[]; derivedLimits: Record<string, number> }>,
+  k = 20,
+  req?: Request
+) {
+  const vRow = await db.select({ cv: vendors.catalogVersion }).from(vendors).where(eq(vendors.id, vendorId)).limit(1);
+  const catalogVersion = vRow[0]?.cv ?? 1;
+
+  const profile = (await readDb.select().from(customerHealthProfiles).where(eq(customerHealthProfiles.customerId, customerId)).limit(1))[0] ?? {};
+  const avoidAllergens = Array.from(new Set([...(profile as any).avoidAllergens ?? [], ...(overrides.avoidAllergens ?? [])]));
+  const preferredDiets = Array.from(new Set([...(profile as any).dietGoals ?? [], ...(overrides.dietGoals ?? [])]));
+  const conditions     = Array.from(new Set([...(profile as any).conditions ?? [], ...(overrides.conditions ?? [])]));
+
+  const rules = conditions.length
+    ? await readDb.select({ policy: dietRules.policy })
+        .from(dietRules)
+        .where(and(eq(dietRules.vendorId, vendorId), sql`${dietRules.conditionCode} = ANY (${textArray(conditions)})`, eq(dietRules.active, true)))
+    : [];
+  const merged = mergePolicies(rules.map((r: any) => r.policy));
+  const derived = ((profile as any).derivedLimits ?? {}) as Record<string, number>;
+  const hardLimits = { ...(merged.hard_limits ?? {}), ...derived, ...(overrides.derivedLimits ?? {}) };
+  const requiredTags: string[] = merged.required_tags ?? [];
+  const preferTags   : string[] = Array.from(new Set([...(merged.bonus_tags ?? []), ...preferredDiets]));
+
+  const candidates = await fetchCandidates(vendorId, avoidAllergens, requiredTags);
+  const now = Date.now();
+  const items = candidates
+    .map((p: any) => {
+      const n = (p.nutrition ?? {}) as Record<string, any>;
+      for (const [key, lim] of Object.entries(hardLimits)) {
+        const v = n?.[key];
+        if (v != null && Number.isFinite(Number(v)) && Number(v) > Number(lim)) return null;
+      }
+      const tags: string[] = p.dietaryTags ?? [];
+      const hit = preferTags.length ? preferTags.filter(t => tags.includes(t)).length / preferTags.length : 0;
+      let penalty = 0;
+      if (n?.sodium_mg != null && hardLimits?.sodium_mg) {
+        const v = Number(n.sodium_mg), L = Number(hardLimits.sodium_mg);
+        if (Number.isFinite(v) && Number.isFinite(L) && L > 0) {
+          penalty = Math.min(0.2, Math.max(0, ((v - 0.5 * L) / (0.5 * L)) * 0.2));
+        }
+      }
+      const updated = p.updatedAt ? new Date(p.updatedAt).getTime() : now;
+      const ageDays = Math.max(0, (now - updated) / 86_400_000);
+      const recency = Math.max(0, 1 - Math.min(ageDays / 90, 1));
+      const score01 = Math.max(0, Math.min(1, 0.6 + 0.4 * hit - penalty + 0.05 * recency));
+      return { ...p, _score: score01, score_pct: Math.round(score01 * 100), _updatedAtMs: updated };
+    })
+    .filter(Boolean)
+    .sort((a: any, b: any) => (b._score - a._score) || (b._updatedAtMs - a._updatedAtMs))
+    .slice(0, k);
+
+  if (req) {
+    await auditAction(req, { action: "read", entity: "matches.preview", entityId: `${customerId}`, after: { count: items.length, k } }).catch(() => {});
+  }
+  return { items, cached: false, catalogVersion };
+}
