@@ -77,7 +77,7 @@ function devError(res: Response, http = 500, msg = "Onboarding failed", extra?: 
 }
 
 /** users: find by appwrite_user_id, then email; create if missing. */
-async function getOrCreateUser(appwriteId: string, email: string, name?: string): Promise<DbUserRow> {
+async function getOrCreateUser(appwriteId: string, email: string, name: string | undefined, vendorId: string): Promise<DbUserRow> {
   // by appwrite_user_id
   const q1 = await sb
     .from("users")
@@ -105,8 +105,9 @@ async function getOrCreateUser(appwriteId: string, email: string, name?: string)
     const patch: Partial<DbUserRow> = {};
     if (!q2.data.appwrite_user_id) patch.appwrite_user_id = appwriteId;
     if (!q2.data.display_name) patch.display_name = name || email;
+    if (!(q2.data as any).vendor_id) (patch as any).vendor_id = vendorId;
     if (Object.keys(patch).length) {
-      const upd = await sb.from("users").update(patch).eq("id", q2.data.id).select("id, email, display_name, appwrite_user_id").single();
+      const upd = await sb.from("users").update(patch).eq("id", q2.data.id).select("id, email, display_name, appwrite_user_id, vendor_id").single();
       if (upd.error) {
         throw Object.assign(new Error("Failed updating users"), { cause: supabaseErrInfo(upd.error) });
       }
@@ -118,8 +119,13 @@ async function getOrCreateUser(appwriteId: string, email: string, name?: string)
   // create
   const ins = await sb
     .from("users")
-    .insert([{ email, display_name: name || email, appwrite_user_id: appwriteId }])
-    .select("id, email, display_name, appwrite_user_id")
+    .insert([{ 
+      email, 
+      display_name: name || email, 
+      appwrite_user_id: appwriteId,
+      vendor_id: vendorId,               // ✅ satisfy NOT NULL
+    }])
+    .select("id, email, display_name, appwrite_user_id, vendor_id")
     .single();
 
   if (ins.error) {
@@ -225,33 +231,50 @@ router.post("/self", async (req: Request, res: Response) => {
     const COL_PROFILES = env("APPWRITE_USERPROFILES_COL");
     let profileDoc: any | null = null;
     try {
+      // most setups use the Appwrite user $id as the document $id
       profileDoc = await adb.getDocument(DB_ID, COL_PROFILES, userInfo.appwrite_id);
     } catch {
+      // be resilient to different field names in user_profiles
+      // try both appwrite_user_id and user_id
       const list = await adb.listDocuments(DB_ID, COL_PROFILES, [
-        Query.equal("appwrite_user_id", userInfo.appwrite_id),
+        Query.or([
+          Query.equal("appwrite_user_id", userInfo.appwrite_id),
+          Query.equal("user_id",           userInfo.appwrite_id),
+        ]),
         Query.limit(1),
       ]);
       profileDoc = list.documents?.[0] ?? null;
     }
 
-    // 3) Ensure users row (UUID) that maps to this appwrite user
-    trace.push("users.ensure");
-    const dbUser = await getOrCreateUser(userInfo.appwrite_id, userInfo.email, userInfo.name);
-
-    // 4) Resolve/ensure vendor
+    // 3) Resolve/ensure vendor FIRST (needed for users.vendor_id on insert)
     trace.push("vendor.resolve");
     const vendorSlug =
       (profileDoc?.vendor_slug as string) ||
       (profileDoc?.vendorSlug as string) ||
+      (profileDoc?.vendor_id as string)   || // some clients store the slug under vendor_id
       slugFromEmail(userInfo.email);
 
     trace.push("vendor.ensure");
     const vendorRow = await getOrCreateVendor(vendorSlug);
 
+    // 4) Ensure users row (UUID) and attach vendor_id immediately
+    trace.push("users.ensure");
+    const dbUser = await getOrCreateUser(
+      userInfo.appwrite_id,
+      userInfo.email,
+      userInfo.name,
+      vendorRow.id
+    );
+
     // 5) Ensure user_links(user_id, vendor_id, role)
     trace.push("user_link.ensure");
     await ensureUserLink(dbUser.id, vendorRow.id);
-    await sb.from("users").update({ vendor_id: vendorRow.id }).eq("id", dbUser.id);
+    // backfill vendor_id only if null (legacy rows)
+    await sb
+      .from("users")
+      .update({ vendor_id: vendorRow.id })
+      .eq("id", dbUser.id)
+      .is("vendor_id", null);
 
     return res.status(200).json({
       ok: true,
